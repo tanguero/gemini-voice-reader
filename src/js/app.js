@@ -31,6 +31,7 @@ class GeminiVoiceReaderApp {
     this.btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
     this.btnCloseSidebar = document.getElementById('btn-close-sidebar');
     this.sidebar = document.getElementById('sidebar');
+    this.sidebarBackdrop = document.getElementById('sidebar-backdrop');
     this.currentDocTitle = document.getElementById('current-doc-title');
     this.btnImport = document.getElementById('btn-import');
     this.btnFontToggle = document.getElementById('btn-font-toggle');
@@ -91,6 +92,29 @@ class GeminiVoiceReaderApp {
     this.updateVoiceBadge();
   }
 
+  toggleSidebar() {
+    const isClosed = this.sidebar.classList.contains('closed');
+    if (isClosed) {
+      this.openSidebar();
+    } else {
+      this.closeSidebar();
+    }
+  }
+
+  openSidebar() {
+    this.sidebar.classList.remove('closed');
+    if (this.sidebarBackdrop) {
+      this.sidebarBackdrop.classList.remove('hidden');
+    }
+  }
+
+  closeSidebar() {
+    this.sidebar.classList.add('closed');
+    if (this.sidebarBackdrop) {
+      this.sidebarBackdrop.classList.add('hidden');
+    }
+  }
+
   updateVoiceBadge() {
     if (!this.voiceEngineBadge) return;
 
@@ -98,22 +122,25 @@ class GeminiVoiceReaderApp {
     const isGeminiVoice = this.ttsEngine.isGeminiVoice(selectedVoice);
 
     if (isGeminiVoice && this.ttsEngine.hasApiKey()) {
-      this.voiceEngineBadge.textContent = '✨ Gemini AI Voice Active';
+      this.voiceEngineBadge.textContent = '✨ Gemini AI Active';
       this.voiceEngineBadge.classList.add('gemini-active');
     } else if (isGeminiVoice && !this.ttsEngine.hasApiKey()) {
-      this.voiceEngineBadge.textContent = '🌐 Browser Voice Fallback (Add API key for Gemini AI)';
+      this.voiceEngineBadge.textContent = '🌐 Browser Fallback';
       this.voiceEngineBadge.classList.remove('gemini-active');
     } else {
-      this.voiceEngineBadge.textContent = '🌐 Local Browser Voice';
+      this.voiceEngineBadge.textContent = '🌐 Browser Voice';
       this.voiceEngineBadge.classList.remove('gemini-active');
     }
   }
 
   bindEvents() {
-    // Sidebar toggle
-    this.btnToggleSidebar.addEventListener('click', () => this.sidebar.classList.toggle('closed'));
+    // Sidebar toggle & backdrop dismiss
+    this.btnToggleSidebar.addEventListener('click', () => this.toggleSidebar());
     if (this.btnCloseSidebar) {
-      this.btnCloseSidebar.addEventListener('click', () => this.sidebar.classList.add('closed'));
+      this.btnCloseSidebar.addEventListener('click', () => this.closeSidebar());
+    }
+    if (this.sidebarBackdrop) {
+      this.sidebarBackdrop.addEventListener('click', () => this.closeSidebar());
     }
 
     // Modal controls
