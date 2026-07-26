@@ -1,8 +1,14 @@
-const CACHE_NAME = 'gemini-reader-v2';
+const CACHE_NAME = 'gemini-reader-v4';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json',
+  './src/style.css',
+  './src/js/app.js',
+  './src/js/audio-player.js',
+  './src/js/gemini-tts.js',
+  './src/js/library.js',
+  './src/js/parser.js'
 ];
 
 self.addEventListener('install', (e) => {
