@@ -183,19 +183,14 @@ export class GeminiTTSEngine {
 
       if (cleanTargetName === 'puck') {
         match = maleVoices[0] || pool[1 % pool.length] || pool[0];
-        utterance.pitch = 1.35; // Energetic
       } else if (cleanTargetName === 'charon') {
         match = maleVoices[1] || maleVoices[0] || pool[2 % pool.length] || pool[0];
-        utterance.pitch = 0.60; // Deep male
       } else if (cleanTargetName === 'kore') {
         match = femaleVoices[0] || pool[0];
-        utterance.pitch = 1.05; // Warm female
       } else if (cleanTargetName === 'fenrir') {
         match = maleVoices[0] || pool[3 % pool.length] || pool[0];
-        utterance.pitch = 0.75; // Authoritative male
       } else if (cleanTargetName === 'aoede') {
         match = femaleVoices[1] || femaleVoices[0] || pool[4 % pool.length] || pool[0];
-        utterance.pitch = 1.25; // Expressive female
       } else {
         match = pool[0];
       }
