@@ -35,6 +35,25 @@ export class AudioPlayerController {
     }
   }
 
+  unlockMobileAudio() {
+    this.initAudioContext();
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+      try {
+        const buffer = this.audioCtx.createBuffer(1, 1, 22050);
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioCtx.destination);
+        source.start(0);
+      } catch (e) {}
+    }
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume();
+      } catch (e) {}
+    }
+  }
+
   setPlaybackRate(rate) {
     this.playbackRate = parseFloat(rate);
     if (this.currentSource && this.currentSource.playbackRate) {

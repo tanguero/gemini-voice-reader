@@ -467,6 +467,7 @@ class GeminiVoiceReaderApp {
   }
 
   startPlayback() {
+    this.player.unlockMobileAudio();
     this.isPlaybackRequested = true;
     this.playSentence(this.currentSentenceIndex);
   }
