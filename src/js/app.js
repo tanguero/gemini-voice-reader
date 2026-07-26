@@ -181,9 +181,12 @@ class GeminiVoiceReaderApp {
 
     // Voice Selector
     this.voiceSelect.addEventListener('change', (e) => {
-      this.player.selectedVoice = e.target.value;
+      const selected = e.target.value;
+      this.player.selectedVoice = selected;
+      this.ttsEngine.audioCache.clear(); // Flush audio cache for new voice
       this.updateVoiceBadge();
-      if (this.player.isPlaying) {
+
+      if (this.isPlaybackRequested || this.player.isPlaying) {
         this.player.stopCurrent();
         this.playSentence(this.currentSentenceIndex);
       }
@@ -302,7 +305,10 @@ class GeminiVoiceReaderApp {
         if (!group || voices.length === 0) return;
 
         group.innerHTML = '';
-        voices.filter(v => v.lang.startsWith('en')).forEach(v => {
+        const enVoices = voices.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
+        const listToDisplay = enVoices.length > 0 ? enVoices : voices;
+
+        listToDisplay.forEach(v => {
           const opt = document.createElement('option');
           opt.value = v.name;
           opt.textContent = `${v.name} (${v.lang})`;
