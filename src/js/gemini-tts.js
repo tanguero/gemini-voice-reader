@@ -152,45 +152,35 @@ export class GeminiTTSEngine {
 
     const cleanTargetName = (voiceName || '').trim().toLowerCase();
 
-    // 1. Direct match by name or URI (for local browser voices)
+    // 1. Direct match by exact name or voiceURI (for local browser voices)
     let match = voices.find(v => v.name === voiceName || v.voiceURI === voiceName || v.name.trim().toLowerCase() === cleanTargetName);
 
     if (!match) {
-      // 2. Try partial match for local voices
+      // 2. Partial match for local voices
       match = voices.find(v => v.name.toLowerCase().includes(cleanTargetName));
     }
 
     if (!match) {
       // 3. Fallback mapping for Gemini prebuilt voice names (Puck, Charon, Kore, Fenrir, Aoede)
       const englishVoices = voices.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
-      const maleVoices = englishVoices.filter(v => 
-        v.name.toLowerCase().includes('male') || 
-        v.name.toLowerCase().includes('david') || 
-        v.name.toLowerCase().includes('mark') || 
-        v.name.toLowerCase().includes('george') || 
-        v.name.toLowerCase().includes('james')
-      );
-      const femaleVoices = englishVoices.filter(v => 
-        v.name.toLowerCase().includes('female') || 
-        v.name.toLowerCase().includes('zira') || 
-        v.name.toLowerCase().includes('hazel') || 
-        v.name.toLowerCase().includes('susan') || 
-        v.name.toLowerCase().includes('catherine')
-      );
+      const pool = englishVoices.length > 0 ? englishVoices : voices;
 
-      const neuralVoices = englishVoices.filter(v => v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online'));
-      const pool = neuralVoices.length > 0 ? neuralVoices : (englishVoices.length > 0 ? englishVoices : voices);
-
+      // Smart distribution across available phone voices
       if (cleanTargetName === 'puck') {
-        match = maleVoices[0] || pool[1 % pool.length] || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david')) || pool[1 % pool.length] || pool[0];
+        utterance.pitch = pool.length > 1 ? 1.0 : 1.15;
       } else if (cleanTargetName === 'charon') {
-        match = maleVoices[1] || maleVoices[0] || pool[2 % pool.length] || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('deep') || (v.name.toLowerCase().includes('male') && v !== pool[0])) || pool[2 % pool.length] || pool[0];
+        utterance.pitch = pool.length > 1 ? 1.0 : 0.85;
       } else if (cleanTargetName === 'kore') {
-        match = femaleVoices[0] || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira')) || pool[0];
+        utterance.pitch = 1.0;
       } else if (cleanTargetName === 'fenrir') {
-        match = maleVoices[0] || pool[3 % pool.length] || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('authoritative') || v.name.toLowerCase().includes('george')) || pool[3 % pool.length] || pool[0];
+        utterance.pitch = pool.length > 1 ? 1.0 : 0.90;
       } else if (cleanTargetName === 'aoede') {
-        match = femaleVoices[1] || femaleVoices[0] || pool[4 % pool.length] || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('female') && v !== pool[0]) || pool[4 % pool.length] || pool[0];
+        utterance.pitch = pool.length > 1 ? 1.0 : 1.10;
       } else {
         match = pool[0];
       }
