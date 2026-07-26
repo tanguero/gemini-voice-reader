@@ -700,6 +700,27 @@ body.font-serif .reader-content {
   gap: 0.6rem;
 }
 
+.api-key-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.api-key-banner-text strong {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.api-key-banner-text p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
 .badge-dot {
   width: 8px;
   height: 8px;

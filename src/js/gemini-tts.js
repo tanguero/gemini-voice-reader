@@ -178,7 +178,8 @@ export class GeminiTTSEngine {
         v.name.toLowerCase().includes('catherine')
       );
 
-      const pool = englishVoices.length > 0 ? englishVoices : voices;
+      const neuralVoices = englishVoices.filter(v => v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online'));
+      const pool = neuralVoices.length > 0 ? neuralVoices : (englishVoices.length > 0 ? englishVoices : voices);
 
       if (cleanTargetName === 'puck') {
         match = maleVoices[0] || pool[1 % pool.length] || pool[0];

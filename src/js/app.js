@@ -305,13 +305,24 @@ class GeminiVoiceReaderApp {
         if (!group || voices.length === 0) return;
 
         group.innerHTML = '';
-        const enVoices = voices.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
-        const listToDisplay = enVoices.length > 0 ? enVoices : voices;
+        
+        // Sort Neural / Natural / Online high quality voices to the top
+        const sorted = [...voices].sort((a, b) => {
+          const aNeural = a.name.includes('Neural') || a.name.includes('Natural') || a.name.includes('Online');
+          const bNeural = b.name.includes('Neural') || b.name.includes('Natural') || b.name.includes('Online');
+          if (aNeural && !bNeural) return -1;
+          if (!aNeural && bNeural) return 1;
+          return 0;
+        });
+
+        const enVoices = sorted.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
+        const listToDisplay = enVoices.length > 0 ? enVoices : sorted;
 
         listToDisplay.forEach(v => {
           const opt = document.createElement('option');
           opt.value = v.name;
-          opt.textContent = `${v.name} (${v.lang})`;
+          const isNeural = v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online');
+          opt.textContent = `${isNeural ? '✨ HD ' : ''}${v.name} (${v.lang})`;
           group.appendChild(opt);
         });
       };
