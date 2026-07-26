@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gemini Voice Reader - AI Text-to-Speech</title>
+  <meta name="description" content="Advanced AI Text-to-Speech document reader powered by Gemini voices for Android and PC.">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body class="theme-dark font-sans">
+  <div id="app" class="app-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="btn-toggle-sidebar" class="btn-icon" title="Toggle Library Sidebar">
+          <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <div class="app-branding">
+          <div class="logo-badge">
+            <svg viewBox="0 0 24 24" class="logo-icon"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2m0 18a8 8 0 0 1-8-8a8 8 0 0 1 8-8a8 8 0 0 1 8 8a8 8 0 0 1-8 8m-2-13v10l7-5z"/></svg>
+          </div>
+          <span class="app-title">Gemini Reader</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <span id="current-doc-title" class="doc-title-badge">No Document Loaded</span>
+      </div>
+
+      <div class="header-right">
+        <button id="btn-import" class="btn btn-primary" title="Import Document">
+          <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          <span class="btn-text">Import</span>
+        </button>
+        <button id="btn-font-toggle" class="btn-icon" title="Toggle Font (Serif/Sans)">
+          <span class="font-indicator">Aa</span>
+        </button>
+        <button id="btn-settings" class="btn-icon" title="Settings & API Key">
+          <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94c0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6s3.6 1.62 3.6 3.6s-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="main-workspace">
+      
+      <!-- Library Drawer / Sidebar -->
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <h3>Library</h3>
+          <button id="btn-close-sidebar" class="btn-icon mobile-only">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </button>
+        </div>
+        <div class="sidebar-content">
+          <div class="sidebar-actions">
+            <button id="btn-new-doc" class="btn btn-secondary btn-full">
+              <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              New Document
+            </button>
+          </div>
+          <div id="library-list" class="library-list">
+            <!-- Documents rendered here -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Reader Scroll Area -->
+      <main id="reader-view" class="reader-view">
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          </div>
+          <h2>Welcome to Gemini Voice Reader</h2>
+          <p>Import a text file, paste an article, or load sample text to start listening with Gemini AI voices.</p>
+          <div class="empty-actions">
+            <button id="btn-load-sample" class="btn btn-primary btn-lg">Load Demo Article</button>
+            <button id="btn-import-empty" class="btn btn-secondary btn-lg">Import File / Paste Text</button>
+          </div>
+        </div>
+
+        <article id="reader-content" class="reader-content hidden">
+          <!-- Parsed paragraphs and interactive clickable sentences inserted here -->
+        </article>
+      </main>
+
+    </div>
+
+    <!-- Docked Floating Media Player (Bottom Control Bar) -->
+    <footer class="player-bar">
+      <!-- Top Progress / Seeking Slider -->
+      <div class="player-progress-container">
+        <span id="player-time-current" class="time-stamp">0:00</span>
+        <div class="progress-track" id="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <span id="player-time-total" class="time-stamp">0:00</span>
+      </div>
+
+      <div class="player-controls-wrapper">
+        <!-- Visualizer & Voice Indicator -->
+        <div class="player-left">
+          <div class="voice-selector-wrapper">
+            <select id="voice-select" class="select-input" title="Voice Model">
+              <optgroup label="✨ Gemini AI Voices">
+                <option value="Puck">Puck (Energetic Male)</option>
+                <option value="Charon">Charon (Deep Male)</option>
+                <option value="Kore" selected>Kore (Warm Female)</option>
+                <option value="Fenrir">Fenrir (Authoritative Male)</option>
+                <option value="Aoede">Aoede (Expressive Female)</option>
+              </optgroup>
+              <optgroup label="🌐 Local Web Voices (Fallback)" id="local-voices-group">
+                <!-- Populated dynamically -->
+              </optgroup>
+            </select>
+            <div id="voice-engine-badge" class="engine-badge" title="Voice Engine Status">🌐 Local Voice</div>
+          </div>
+
+          <div class="visualizer-container">
+            <canvas id="visualizer-canvas" width="100" height="32"></canvas>
+          </div>
+        </div>
+
+        <!-- Main Playback Buttons -->
+        <div class="player-center">
+          <button id="btn-prev-para" class="btn-icon" title="Previous Paragraph (Up Arrow)">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="btn-prev-sentence" class="btn-icon" title="Previous Sentence (Left Arrow)">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M11 18V6l-8.5 6zm.5-6l8.5 6V6z"/></svg>
+          </button>
+          
+          <button id="btn-play-pause" class="btn-play-pause" title="Play/Pause (Space)">
+            <svg id="icon-play" viewBox="0 0 24 24" class="icon-lg"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" class="icon-lg hidden"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+
+          <button id="btn-next-sentence" class="btn-icon" title="Next Sentence (Right Arrow)">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6z"/></svg>
+          </button>
+          <button id="btn-next-para" class="btn-icon" title="Next Paragraph (Down Arrow)">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M16 18h2V6h-2zM6 18l8.5-6L6 6v12z"/></svg>
+          </button>
+        </div>
+
+        <!-- Speed & Secondary Tools -->
+        <div class="player-right">
+          <div class="speed-selector-wrapper">
+            <button id="btn-speed" class="btn-badge" title="Playback Speed">
+              <span id="speed-label">1.0x</span>
+            </button>
+          </div>
+
+          <button id="btn-sleep-timer" class="btn-icon" title="Sleep Timer">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M12 2A10 10 0 1 0 22 12A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8zm1-13h-2v6l5.2 3.1l1-1.6l-4.2-2.5z"/></svg>
+            <span id="sleep-timer-badge" class="badge-dot hidden"></span>
+          </button>
+
+          <button id="btn-export-audio" class="btn-icon" title="Export Audio File">
+            <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7l7-7zM5 18v2h14v-2H5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Import Modal -->
+    <div id="modal-import" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Import Document</h3>
+          <button class="btn-icon modal-close"><svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+        </div>
+        <div class="modal-body">
+          <div class="import-tabs">
+            <button class="tab-btn active" data-tab="tab-file">File Drop / Upload</button>
+            <button class="tab-btn" data-tab="tab-paste">Paste Text / Web Link</button>
+          </div>
+          
+          <div id="tab-file" class="tab-pane active">
+            <div id="drop-zone" class="drop-zone">
+              <svg viewBox="0 0 24 24" class="upload-icon"><path fill="currentColor" d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5c0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5l5 5h-3z"/></svg>
+              <p>Drag & Drop your <strong>.txt, .md, .epub</strong> file here</p>
+              <span>or</span>
+              <label for="file-input" class="btn btn-secondary">Browse Files</label>
+              <input type="file" id="file-input" accept=".txt,.md,.epub,.json,.html" class="hidden">
+            </div>
+          </div>
+
+          <div id="tab-paste" class="tab-pane hidden">
+            <div class="form-group">
+              <label for="doc-title-input">Document Title</label>
+              <input type="text" id="doc-title-input" class="form-input" placeholder="e.g. My Favorite Article">
+            </div>
+            <div class="form-group">
+              <label for="paste-input">Article Text</label>
+              <textarea id="paste-input" class="form-textarea" rows="8" placeholder="Paste full article text, markdown, or story content..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary modal-close">Cancel</button>
+          <button id="btn-submit-import" class="btn btn-primary">Start Reading</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings & API Key Modal -->
+    <div id="modal-settings" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Settings & Gemini API Key</h3>
+          <button class="btn-icon modal-close"><svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="gemini-api-key">Gemini API Key</label>
+            <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
+            <small class="form-help">Enter your Google Gemini API key to unlock natural Gemini AI Voices (Puck, Kore, Charon, etc.). Stored locally in your browser.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="voice-style-prompt">Voice Tone & Reading Style</label>
+            <select id="voice-style-prompt" class="form-input">
+              <option value="Read this text naturally, clearly, and expressively like an audiobook narrator.">Audiobook Narrator (Natural & Clear)</option>
+              <option value="Read this text dramatically with high emotion and storytelling flair.">Dramatic & Storytelling</option>
+              <option value="Read this text calmly and softly like a soothing podcast host.">Calm & Soothing</option>
+              <option value="Read this text briskly and energetically for fast learning.">Brisk & Energetic</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="setting-chunk-size">Sentence Batch Size for Pre-fetching</label>
+            <select id="setting-chunk-size" class="form-input">
+              <option value="1">1 Sentence (Low Latency)</option>
+              <option value="3" selected>3 Sentences (Smooth Queue - Recommended)</option>
+              <option value="5">5 Sentences (High Pre-fetch)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="btn btn-primary">Save Preferences</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sleep Timer Modal -->
+    <div id="modal-sleep" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card modal-sm">
+        <div class="modal-header">
+          <h3>Sleep Timer</h3>
+          <button class="btn-icon modal-close"><svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+        </div>
+        <div class="modal-body">
+          <div class="sleep-options">
+            <button class="btn btn-secondary sleep-btn" data-minutes="5">5 Minutes</button>
+            <button class="btn btn-secondary sleep-btn" data-minutes="15">15 Minutes</button>
+            <button class="btn btn-secondary sleep-btn" data-minutes="30">30 Minutes</button>
+            <button class="btn btn-secondary sleep-btn" data-minutes="60">60 Minutes</button>
+            <button class="btn btn-danger sleep-btn" data-minutes="0">Turn Off Timer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="/src/js/app.js"></script>
+</body>
+</html>

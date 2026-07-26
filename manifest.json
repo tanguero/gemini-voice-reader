@@ -1,0 +1,22 @@
+{
+  "short_name": "GeminiReader",
+  "name": "Gemini Voice Reader",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "display": "standalone",
+  "orientation": "any",
+  "description": "Text-to-Speech Reader using Gemini Voices & AI for Android and PC"
+}
