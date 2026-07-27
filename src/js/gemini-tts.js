@@ -171,7 +171,10 @@ export class GeminiTTSEngine {
       try {
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey
+          },
           body: JSON.stringify(requestPayload)
         });
 
@@ -179,7 +182,7 @@ export class GeminiTTSEngine {
           const errText = await res.text();
           const isKeyError = res.status === 401 || res.status === 403 || errText.includes('API_KEY_INVALID') || errText.includes('API key not valid');
           if (isKeyError) {
-            throw new Error('Invalid Gemini API Key. Please copy your free API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
+            throw new Error('Invalid Gemini API Key. Please verify your API Key from Google AI Studio (aistudio.google.com).');
           }
           lastErr = new Error(`Gemini API Error (${res.status}): ${errText}`);
           continue;
