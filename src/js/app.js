@@ -726,18 +726,6 @@ class GeminiVoiceReaderApp {
     }
 
     let voice = this.voiceSelect.value;
-    if (!this.ttsEngine.isGeminiVoice(voice)) {
-      voice = 'Kore';
-      this.voiceSelect.value = 'Kore';
-    }
-
-    if (!this.ttsEngine.hasApiKey()) {
-      alert('Please save your free Gemini API Key in Settings ⚙️ to export HD Audio files.');
-      this.inputApiKey.value = this.ttsEngine.apiKey;
-      this.showModal(this.modalSettings);
-      return;
-    }
-
     const btn = this.btnExportAudio;
     const origHtml = btn.innerHTML;
     btn.disabled = true;
