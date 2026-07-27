@@ -306,6 +306,7 @@ export class GeminiTTSEngine {
 
     if (match) {
       utterance.voice = match;
+      utterance.lang = match.lang || 'en-US';
     }
 
     return utterance;
