@@ -259,38 +259,6 @@ export class GeminiTTSEngine {
     }
   }
 
-  async renderFallbackPcm(text, voiceName, audioCtx) {
-    return new Promise((resolve) => {
-      if (!('speechSynthesis' in window)) {
-        resolve(new Uint8Array(0));
-        return;
-      }
-
-      const utterance = this.createWebSpeechUtterance(text, voiceName);
-      let finished = false;
-
-      const done = () => {
-        if (!finished) {
-          finished = true;
-          resolve(new Uint8Array(0));
-        }
-      };
-
-      utterance.onend = done;
-      utterance.onerror = done;
-
-      try {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        done();
-      }
-
-      // Safety timeout after 10 seconds per sentence
-      setTimeout(done, 10000);
-    });
-  }
-
   async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
     if (!this.hasApiKey()) {
       throw new Error('MISSING_KEY');
