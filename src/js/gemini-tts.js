@@ -229,12 +229,11 @@ export class GeminiTTSEngine {
           pcmBytes: bytes
         };
       } catch (e) {
-        if (e.message && (e.message.includes('401') || e.message.includes('403'))) throw e;
         lastErr = e;
       }
     }
 
-    throw lastErr || new Error('Failed to generate speech with Gemini API.');
+    return null;
   }
 
   /**
