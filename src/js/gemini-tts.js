@@ -100,7 +100,8 @@ export class GeminiTTSEngine {
           return audioBuffer;
         }
       } catch (err) {
-        console.warn('Gemini API speech generation failed, falling back to Web Speech API:', err);
+        console.error('Gemini API speech generation failed:', err);
+        this.lastError = err.message;
       }
     }
 
@@ -114,11 +115,13 @@ export class GeminiTTSEngine {
   async fetchGeminiSpeech(text, voiceName, audioCtx) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
     
+    const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
+
     const requestPayload = {
       contents: [
         {
           parts: [
-            { text: `${this.stylePrompt}\nText: "${text}"` }
+            { text: `Please read this sentence aloud: "${text}"` }
           ]
         }
       ],
@@ -127,7 +130,7 @@ export class GeminiTTSEngine {
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
-              voiceName: voiceName
+              voiceName: formattedVoiceName
             }
           }
         }
