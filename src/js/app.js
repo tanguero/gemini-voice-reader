@@ -24,6 +24,16 @@ class GeminiVoiceReaderApp {
     this.registerServiceWorker();
 
     this.populateLocalVoices();
+
+    const savedVoice = localStorage.getItem('selected_voice');
+    if (savedVoice && this.voiceSelect) {
+      const optionExists = Array.from(this.voiceSelect.options).some(opt => opt.value === savedVoice);
+      if (optionExists) {
+        this.voiceSelect.value = savedVoice;
+        this.player.selectedVoice = savedVoice;
+      }
+    }
+
     this.loadInitialDoc();
   }
 
@@ -210,6 +220,7 @@ class GeminiVoiceReaderApp {
     // Voice Selector
     this.voiceSelect.addEventListener('change', (e) => {
       const selected = e.target.value;
+      localStorage.setItem('selected_voice', selected);
       this.player.selectedVoice = selected;
       this.ttsEngine.invalidateCache(); // Flush audio cache & cancel in-flight old voice pre-fetches
       this.updateVoiceBadge();
