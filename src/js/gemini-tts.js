@@ -340,12 +340,12 @@ export class GeminiTTSEngine {
         utterance.pitch = 1.15;
       } else if (cleanTargetName === 'charon') {
         match = pool.find(v => v.name.toLowerCase().includes('deep') || v.name.toLowerCase().includes('male')) || pool[0];
-        utterance.pitch = 0.85;
+        utterance.pitch = 0.80;
       } else if (cleanTargetName === 'kore') {
         match = pool.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira')) || pool[0];
         utterance.pitch = 1.0;
       } else if (cleanTargetName === 'fenrir') {
-        match = pool.find(v => v.name.toLowerCase().includes('authoritative') || v.name.toLowerCase().includes('george')) || pool[0];
+        match = pool.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david')) || pool[0];
         utterance.pitch = 0.90;
       } else if (cleanTargetName === 'aoede') {
         match = pool.find(v => v.name.toLowerCase().includes('female')) || pool[0];
