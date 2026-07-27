@@ -407,6 +407,19 @@ class GeminiVoiceReaderApp {
     this.jumpToSentence(startSentenceIdx, false);
   }
 
+  unloadCurrentDoc() {
+    this.currentDoc = null;
+    this.currentSentenceIndex = 0;
+    this.currentDocTitle.textContent = 'No Document';
+    this.player.stopCurrent();
+
+    this.readerContent.innerHTML = '';
+    this.readerContent.classList.add('hidden');
+    this.emptyState.classList.remove('hidden');
+
+    this.renderLibrarySidebar();
+  }
+
   /**
    * Renders paragraphs and interactive sentences to DOM
    */
@@ -480,21 +493,17 @@ class GeminiVoiceReaderApp {
           this.library.deleteDoc(d.id);
           const remainingDocs = this.library.getAllDocs();
 
-          if (this.currentDoc && this.currentDoc.id === d.id) {
+          if (remainingDocs.length === 0) {
+            this.unloadCurrentDoc();
+          } else if (this.currentDoc && this.currentDoc.id === d.id) {
             this.player.stopCurrent();
-            if (remainingDocs.length > 0) {
-              const nextDoc = remainingDocs[0];
-              const fullParsed = DocumentParser.parseText(
-                nextDoc.paragraphs.map(p => p.text).join('\n\n'),
-                nextDoc.title
-              );
-              fullParsed.id = nextDoc.id;
-              this.loadDocument(fullParsed, nextDoc.currentSentenceIndex || 0);
-            } else {
-              this.currentDoc = null;
-              this.readerContent.innerHTML = '<div class="empty-state">No active document. Import a text file or paste article text to begin!</div>';
-              this.renderLibrarySidebar();
-            }
+            const nextDoc = remainingDocs[0];
+            const fullParsed = DocumentParser.parseText(
+              nextDoc.paragraphs.map(p => p.text).join('\n\n'),
+              nextDoc.title
+            );
+            fullParsed.id = nextDoc.id;
+            this.loadDocument(fullParsed, nextDoc.currentSentenceIndex || 0, false);
           } else {
             this.renderLibrarySidebar();
           }
