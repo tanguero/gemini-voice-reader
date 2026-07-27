@@ -70,7 +70,7 @@ export class GeminiTTSEngine {
   }
 
   hasApiKey() {
-    return Boolean(this.apiKey && this.apiKey.length > 5);
+    return Boolean(this.apiKey && this.apiKey.length > 10 && this.apiKey.startsWith('AIzaSy'));
   }
 
   isGeminiVoice(voiceName) {
@@ -144,6 +144,9 @@ export class GeminiTTSEngine {
     });
 
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Invalid API Key (HTTP 401/403). Please copy a free Gemini API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
+      }
       const errText = await res.text();
       throw new Error(`Gemini API Error (${res.status}): ${errText}`);
     }
