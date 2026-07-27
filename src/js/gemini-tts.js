@@ -331,12 +331,10 @@ export class GeminiTTSEngine {
       match = voices.find(v => v.name.toLowerCase().includes(cleanTargetName));
     }
 
-    if (!match) {
-      // 3. Fallback mapping for Gemini prebuilt voice names (Puck, Charon, Kore, Fenrir, Aoede)
-      const englishVoices = voices.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
-      const pool = englishVoices.length > 0 ? englishVoices : voices;
+      const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
+      const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
+      const pool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
 
-      // Smart distribution across available phone voices
       if (cleanTargetName === 'puck') {
         match = pool.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david')) || pool[1 % pool.length] || pool[0];
         utterance.pitch = pool.length > 1 ? 1.0 : 1.15;
@@ -355,7 +353,6 @@ export class GeminiTTSEngine {
       } else {
         match = pool[0];
       }
-    }
 
     if (match) {
       utterance.voice = match;
