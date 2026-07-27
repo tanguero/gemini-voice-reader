@@ -93,7 +93,7 @@ export class GeminiTTSEngine {
   }
 
   hasApiKey() {
-    return Boolean(this.apiKey && this.apiKey.length > 10 && this.apiKey.startsWith('AIzaSy'));
+    return Boolean(this.apiKey && this.apiKey.trim().length > 5);
   }
 
   isGeminiVoice(voiceName) {

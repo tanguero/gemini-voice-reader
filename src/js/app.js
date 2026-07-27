@@ -684,8 +684,10 @@ class GeminiVoiceReaderApp {
     }
 
     const voice = this.voiceSelect.value;
-    if (!this.ttsEngine.isGeminiVoice(voice) || !this.ttsEngine.hasApiKey()) {
-      alert('Please select a Gemini AI voice and save your Gemini API Key in Settings to export HD Audio files.');
+    if (!this.ttsEngine.hasApiKey()) {
+      alert('Please save your Gemini API Key in Settings ⚙️ to export HD Audio files.');
+      this.inputApiKey.value = this.ttsEngine.apiKey;
+      this.showModal(this.modalSettings);
       return;
     }
 
