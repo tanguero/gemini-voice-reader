@@ -172,13 +172,22 @@ export class AudioPlayerController {
       this.playAudioBuffer(audioItem, onEndedCallback);
     } else if (audioItem instanceof SpeechSynthesisUtterance) {
       audioItem.rate = this.playbackRate;
+      const startTime = Date.now();
+
       audioItem.onend = () => {
+        const elapsed = Date.now() - startTime;
+        if (document.hidden && elapsed < 300) {
+          // Screen lock aborted Web Speech: stop playback instead of skipping sentences
+          this.isPlaying = false;
+          return;
+        }
         this.isPlaying = false;
         if (onEndedCallback) onEndedCallback();
       };
+
       audioItem.onerror = () => {
         this.isPlaying = false;
-        if (onEndedCallback) onEndedCallback();
+        if (!document.hidden && onEndedCallback) onEndedCallback();
       };
       
       window.speechSynthesis.cancel();

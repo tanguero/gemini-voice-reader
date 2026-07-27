@@ -200,6 +200,13 @@ class GeminiVoiceReaderApp {
       }
     });
 
+    // Re-sync UI & smooth scroll when screen is unlocked
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.currentDoc) {
+        this.updateActiveSentenceUI(this.currentSentenceIndex);
+      }
+    });
+
     // Speed Cycle
     this.btnSpeed.addEventListener('click', () => {
       this.currentSpeedIdx = (this.currentSpeedIdx + 1) % this.speedRates.length;
@@ -592,8 +599,10 @@ class GeminiVoiceReaderApp {
       const paraEl = document.getElementById(`para-${sentenceObj.paragraphIndex}`);
       if (paraEl) paraEl.classList.add('current-paragraph');
 
-      // Smooth center scrolling
-      sentenceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Smooth center scrolling only when screen is visible
+      if (!document.hidden) {
+        sentenceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
 
     // Update Progress Bar
