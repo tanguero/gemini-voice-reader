@@ -173,8 +173,11 @@ export class AudioPlayerController {
     } else if (audioItem instanceof SpeechSynthesisUtterance) {
       audioItem.rate = this.playbackRate;
       const startTime = Date.now();
+      const currentUtterance = audioItem;
+      this.activeUtterance = currentUtterance;
 
       audioItem.onend = () => {
+        if (this.activeUtterance !== currentUtterance) return;
         const elapsed = Date.now() - startTime;
         if (document.hidden && elapsed < 300) {
           // Screen lock aborted Web Speech: stop playback instead of skipping sentences
@@ -186,12 +189,15 @@ export class AudioPlayerController {
       };
 
       audioItem.onerror = () => {
+        if (this.activeUtterance !== currentUtterance) return;
         this.isPlaying = false;
         if (!document.hidden && onEndedCallback) onEndedCallback();
       };
       
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(audioItem);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(audioItem);
+      }
       this.startVisualizerMock();
     }
   }
@@ -216,6 +222,7 @@ export class AudioPlayerController {
 
   stopCurrent() {
     this.isPlaying = false;
+    this.activeUtterance = null;
     this.stopBackgroundKeepAlive();
 
     if (this.currentHtmlAudio) {
