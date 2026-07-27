@@ -276,23 +276,17 @@ export class GeminiTTSEngine {
       const cacheKey = `${targetVoice}:${sentences[i].text}`;
       let audioItem = this.audioCache.get(cacheKey);
 
-      // Auto retry up to 3 times if needed
-      let retries = 0;
-      while ((!audioItem || !audioItem.pcmBytes) && retries < 3) {
+      if (!audioItem || !audioItem.pcmBytes) {
         audioItem = await this.fetchGeminiSpeech(sentences[i].text, targetVoice, audioCtx);
         if (audioItem && audioItem.pcmBytes) {
           this.audioCache.set(cacheKey, audioItem);
-          break;
         }
-        retries++;
-        if (retries < 3) await new Promise(r => setTimeout(r, 200));
       }
 
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        // Smooth 0.2s silence gap fallback so export never fails or alerts
-        pcmChunks.push(new Uint8Array(9600));
+        throw new Error('HD Audio Export requires a free Gemini API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
       }
 
       // Small pacing delay between sentence requests

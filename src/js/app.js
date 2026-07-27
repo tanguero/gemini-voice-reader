@@ -769,6 +769,10 @@ class GeminiVoiceReaderApp {
     } catch (e) {
       console.error('Audio export failed:', e);
       alert(e.message || 'Error exporting audio file.');
+      if (this.modalSettings) {
+        this.inputApiKey.value = this.ttsEngine.apiKey;
+        this.showModal(this.modalSettings);
+      }
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHtml;
