@@ -125,6 +125,7 @@ export class GeminiTTSEngine {
       } catch (err) {
         console.error('Gemini API speech generation failed:', err);
         this.lastError = err.message;
+        throw err;
       }
     }
 

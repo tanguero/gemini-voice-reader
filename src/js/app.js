@@ -614,6 +614,9 @@ class GeminiVoiceReaderApp {
     } catch (err) {
       console.error('Sentence audio error:', err);
       this.pausePlayback();
+      if (err && err.message) {
+        alert(err.message);
+      }
     }
   }
 
