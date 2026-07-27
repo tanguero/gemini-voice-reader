@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gemini-reader-v19';
+const CACHE_NAME = 'gemini-reader-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -12,10 +12,10 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
@@ -29,11 +29,20 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+// Network-First strategy: Always fetch fresh code from server if online, fallback to cache if offline
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || e.request.url.includes('generativelanguage.googleapis.com')) {
     return;
   }
   e.respondWith(
-    caches.match(e.request).then((res) => res || fetch(e.request))
+    fetch(e.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
