@@ -20,10 +20,18 @@ class GeminiVoiceReaderApp {
 
     this.initElements();
     this.bindEvents();
+    this.bindMediaSession();
     this.registerServiceWorker();
 
     this.populateLocalVoices();
     this.loadInitialDoc();
+  }
+
+  bindMediaSession() {
+    this.player.onMediaPlay = () => this.startPlayback();
+    this.player.onMediaPause = () => this.pausePlayback();
+    this.player.onMediaNext = () => this.skipSentence(1);
+    this.player.onMediaPrev = () => this.skipSentence(-1);
   }
 
   initElements() {
@@ -497,6 +505,13 @@ class GeminiVoiceReaderApp {
     const sentenceObj = this.currentDoc.sentences[index];
     this.updateActiveSentenceUI(index);
     this.updatePlayPauseUI(true);
+
+    this.player.startBackgroundKeepAlive();
+    this.player.updateMediaSession(
+      this.currentDoc.title,
+      index,
+      this.currentDoc.totalSentences
+    );
 
     // Pre-fetch upcoming sentences for seamless playback
     this.ttsEngine.prefetchUpcoming(

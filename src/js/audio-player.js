@@ -19,6 +19,48 @@ export class AudioPlayerController {
     this.sleepTimerEndTime = null;
 
     this.animFrameId = null;
+    this.keepAliveAudio = null;
+
+    this.onMediaPlay = null;
+    this.onMediaPause = null;
+    this.onMediaNext = null;
+    this.onMediaPrev = null;
+  }
+
+  updateMediaSession(title, sentenceIdx, totalSentences) {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title || 'Gemini Voice Reader',
+        artist: `Sentence ${sentenceIdx + 1} of ${totalSentences}`,
+        album: 'Gemini Voice Reader PWA',
+        artwork: [
+          { src: './icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: './icon-192.png', sizes: '192x192', type: 'image/png' }
+        ]
+      });
+
+      try {
+        navigator.mediaSession.setActionHandler('play', () => { if (this.onMediaPlay) this.onMediaPlay(); });
+        navigator.mediaSession.setActionHandler('pause', () => { if (this.onMediaPause) this.onMediaPause(); });
+        navigator.mediaSession.setActionHandler('previoustrack', () => { if (this.onMediaPrev) this.onMediaPrev(); });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { if (this.onMediaNext) this.onMediaNext(); });
+      } catch (e) {}
+    }
+  }
+
+  startBackgroundKeepAlive() {
+    if (!this.keepAliveAudio) {
+      const silentWav = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      this.keepAliveAudio = new Audio(silentWav);
+      this.keepAliveAudio.loop = true;
+    }
+    this.keepAliveAudio.play().catch(e => {});
+  }
+
+  stopBackgroundKeepAlive() {
+    if (this.keepAliveAudio) {
+      this.keepAliveAudio.pause();
+    }
   }
 
   initAudioContext() {
@@ -106,6 +148,7 @@ export class AudioPlayerController {
 
   stopCurrent() {
     this.isPlaying = false;
+    this.stopBackgroundKeepAlive();
 
     if (this.currentSource) {
       try {
