@@ -725,17 +725,7 @@ class GeminiVoiceReaderApp {
       return;
     }
 
-    if (!this.ttsEngine.hasApiKey()) {
-      this.inputApiKey.value = this.ttsEngine.apiKey;
-      this.showModal(this.modalSettings);
-      return;
-    }
-
     let voice = this.voiceSelect.value;
-    if (!this.ttsEngine.isGeminiVoice(voice)) {
-      voice = 'Kore';
-    }
-
     const btn = this.btnExportAudio;
     const origHtml = btn.innerHTML;
     btn.disabled = true;
@@ -763,12 +753,7 @@ class GeminiVoiceReaderApp {
         setTimeout(() => URL.revokeObjectURL(url), 10000);
       }
     } catch (e) {
-      if (e.message === 'MISSING_KEY') {
-        this.inputApiKey.value = this.ttsEngine.apiKey;
-        this.showModal(this.modalSettings);
-      } else {
-        console.error('Audio export failed:', e);
-      }
+      console.error('Audio export error:', e);
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHtml;
