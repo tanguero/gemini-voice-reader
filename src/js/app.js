@@ -134,7 +134,7 @@ class GeminiVoiceReaderApp {
       this.voiceEngineBadge.textContent = '✨ Gemini AI Active';
       this.voiceEngineBadge.classList.add('gemini-active');
     } else if (isGeminiVoice && !this.ttsEngine.hasApiKey()) {
-      this.voiceEngineBadge.textContent = '🌐 Browser Fallback';
+      this.voiceEngineBadge.textContent = '⚠️ Key Needed (Tap ⚙️)';
       this.voiceEngineBadge.classList.remove('gemini-active');
     } else {
       this.voiceEngineBadge.textContent = '🌐 Browser Voice';

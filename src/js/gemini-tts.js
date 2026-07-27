@@ -58,7 +58,7 @@ export class GeminiTTSEngine {
   }
 
   setApiKey(key) {
-    this.apiKey = key.trim();
+    this.apiKey = (key || '').trim().replace(/^["']|["']$/g, '');
     localStorage.setItem('gemini_api_key', this.apiKey);
     this.invalidateCache();
   }
