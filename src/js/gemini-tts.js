@@ -4,6 +4,44 @@
 
 const GEMINI_VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'];
 
+function pcmToWav(pcmBytes, sampleRate = 24000) {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmBytes.length;
+  const chunkSize = 36 + dataSize;
+
+  const wavHeader = new ArrayBuffer(44);
+  const view = new DataView(wavHeader);
+
+  function writeString(offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, chunkSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  const wavBytes = new Uint8Array(44 + dataSize);
+  wavBytes.set(new Uint8Array(wavHeader), 0);
+  wavBytes.set(pcmBytes, 44);
+
+  return wavBytes;
+}
+
 export class GeminiTTSEngine {
   constructor() {
     this.apiKey = localStorage.getItem('gemini_api_key') || '';
@@ -124,12 +162,21 @@ export class GeminiTTSEngine {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    const mimeType = part.inlineData.mimeType || 'audio/wav';
-    const blob = new Blob([bytes], { type: mimeType });
+    const mimeType = (part.inlineData.mimeType || '').toLowerCase();
+    let finalWavBytes = bytes;
+
+    // Gemini 2.0 Flash returns raw 24kHz PCM (audio/pcm or audio/raw).
+    // Wrap with a 44-byte WAV header if it doesn't already start with 'RIFF'
+    const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
+    if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
+      finalWavBytes = pcmToWav(bytes, 24000);
+    }
+
+    const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
     const blobUrl = URL.createObjectURL(blob);
     let audioBuffer = null;
     try {
-      audioBuffer = await audioCtx.decodeAudioData(bytes.buffer.slice(0));
+      audioBuffer = await audioCtx.decodeAudioData(finalWavBytes.buffer.slice(0));
     } catch (e) {}
 
     return {
