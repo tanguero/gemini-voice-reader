@@ -182,8 +182,11 @@ export class GeminiTTSEngine {
     const blobUrl = URL.createObjectURL(blob);
     let audioBuffer = null;
     try {
-      audioBuffer = await audioCtx.decodeAudioData(finalWavBytes.buffer.slice(0));
-    } catch (e) {}
+      const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
+      audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
+    } catch (e) {
+      console.error('AudioContext decodeAudioData error:', e);
+    }
 
     return {
       blobUrl: blobUrl,

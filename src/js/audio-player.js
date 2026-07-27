@@ -143,7 +143,9 @@ export class AudioPlayerController {
     this.isPlaying = true;
 
     // Check if Gemini Audio object ({ blobUrl, audioBuffer })
-    if (audioItem && audioItem.blobUrl) {
+    if (audioItem && audioItem.audioBuffer) {
+      this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
+    } else if (audioItem && audioItem.blobUrl) {
       const htmlAudio = new Audio(audioItem.blobUrl);
       htmlAudio.playbackRate = this.playbackRate;
 
@@ -162,10 +164,7 @@ export class AudioPlayerController {
 
       this.currentHtmlAudio = htmlAudio;
       htmlAudio.play().catch(e => {
-        // Fallback to web audio source node if HTML5 audio play fails
-        if (audioItem.audioBuffer) {
-          this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
-        }
+        console.warn('HTML5 Audio play failed:', e);
       });
       this.startVisualizerMock();
     } else if (audioItem instanceof AudioBuffer) {
