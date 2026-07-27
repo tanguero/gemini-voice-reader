@@ -338,21 +338,32 @@ export class GeminiTTSEngine {
       const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
       const pool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
 
+      const neuralVoices = pool.filter(v => v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online'));
+      const activePool = neuralVoices.length > 0 ? neuralVoices : pool;
+
+      const males = activePool.filter(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('mark') || v.name.toLowerCase().includes('richard') || v.name.toLowerCase().includes('guy'));
+      const females = activePool.filter(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('linda') || v.name.toLowerCase().includes('jenny') || v.name.toLowerCase().includes('aria'));
+
       if (cleanTargetName === 'puck') {
-        match = pool.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david')) || pool[0];
+        match = males[0] || activePool[0];
         utterance.pitch = 1.15;
+        utterance.rate = 1.05;
       } else if (cleanTargetName === 'charon') {
-        match = pool.find(v => v.name.toLowerCase().includes('deep') || v.name.toLowerCase().includes('male')) || pool[0];
-        utterance.pitch = 0.80;
+        match = males[1 % males.length] || males[0] || activePool[0];
+        utterance.pitch = 0.75;
+        utterance.rate = 0.95;
       } else if (cleanTargetName === 'kore') {
-        match = pool.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira')) || pool[0];
-        utterance.pitch = 1.0;
+        match = females[0] || activePool.find(v => v.name.toLowerCase().includes('female')) || activePool[0];
+        utterance.pitch = 1.05;
+        utterance.rate = 1.0;
       } else if (cleanTargetName === 'fenrir') {
-        match = pool.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david')) || pool[0];
-        utterance.pitch = 0.90;
+        match = males[(males.length - 1) % males.length] || males[0] || activePool[0];
+        utterance.pitch = 0.88;
+        utterance.rate = 0.98;
       } else if (cleanTargetName === 'aoede') {
-        match = pool.find(v => v.name.toLowerCase().includes('female')) || pool[0];
-        utterance.pitch = 1.10;
+        match = females[(females.length - 1) % females.length] || females[0] || activePool[0];
+        utterance.pitch = 1.15;
+        utterance.rate = 1.02;
       }
     } else if (!match) {
       const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
