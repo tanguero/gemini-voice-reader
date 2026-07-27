@@ -286,7 +286,8 @@ export class GeminiTTSEngine {
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        throw new Error(`Audio generation failed for sentence ${i + 1}. Please verify your Gemini API key in Settings ⚙️.`);
+        const detail = this.lastError ? `: ${this.lastError}` : '';
+        throw new Error(`Audio export failed on sentence ${i + 1}${detail}. Please check your Gemini API key in Settings ⚙️.`);
       }
 
       // Small 80ms pacing delay between sentence requests
