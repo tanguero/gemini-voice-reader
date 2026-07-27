@@ -388,13 +388,15 @@ class GeminiVoiceReaderApp {
     }
   }
 
-  loadDocument(parsedDoc, startSentenceIdx = 0) {
+  loadDocument(parsedDoc, startSentenceIdx = 0, saveToLibrary = true) {
     if (!parsedDoc) return;
 
     this.currentDoc = parsedDoc;
     this.currentSentenceIndex = startSentenceIdx;
 
-    this.library.addOrUpdateDoc(parsedDoc);
+    if (saveToLibrary) {
+      this.library.addOrUpdateDoc(parsedDoc);
+    }
     this.renderLibrarySidebar();
 
     this.currentDocTitle.textContent = parsedDoc.title;
