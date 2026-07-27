@@ -206,6 +206,41 @@ export class GeminiTTSEngine {
   }
 
   /**
+   * Exports full document text as a single downloadable WAV audio file
+   */
+  async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
+    const pcmChunks = [];
+
+    for (let i = 0; i < sentences.length; i++) {
+      if (onProgress) onProgress(i + 1, sentences.length);
+      const audioItem = await this.getSentenceAudio(sentences[i].text, voiceName, audioCtx);
+
+      if (audioItem && audioItem.blobUrl) {
+        try {
+          const res = await fetch(audioItem.blobUrl);
+          const arrayBuf = await res.arrayBuffer();
+          if (arrayBuf.byteLength > 44) {
+            pcmChunks.push(new Uint8Array(arrayBuf, 44));
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (pcmChunks.length === 0) return null;
+
+    const totalLength = pcmChunks.reduce((acc, c) => acc + c.length, 0);
+    const combinedPcm = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of pcmChunks) {
+      combinedPcm.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const finalWav = pcmToWav(combinedPcm, 24000);
+    return new Blob([finalWav], { type: 'audio/wav' });
+  }
+
+  /**
    * Web Speech API fallback generator
    */
   createWebSpeechUtterance(text, voiceName) {

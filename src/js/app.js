@@ -226,6 +226,8 @@ class GeminiVoiceReaderApp {
     });
 
     // Sleep Timer Preset Buttons
+    this.btnExportAudio.addEventListener('click', () => this.handleExportAudio());
+
     document.querySelectorAll('.sleep-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const minutes = parseInt(e.target.dataset.minutes, 10);
@@ -641,6 +643,55 @@ class GeminiVoiceReaderApp {
     } else {
       this.iconPlay.classList.remove('hidden');
       this.iconPause.classList.add('hidden');
+    }
+  }
+
+  async handleExportAudio() {
+    if (!this.currentDoc || !this.currentDoc.sentences || this.currentDoc.sentences.length === 0) {
+      alert('No active document to export.');
+      return;
+    }
+
+    const voice = this.voiceSelect.value;
+    if (!this.ttsEngine.isGeminiVoice(voice) || !this.ttsEngine.hasApiKey()) {
+      alert('Please select a Gemini AI voice and save your Gemini API Key in Settings to export HD Audio files.');
+      return;
+    }
+
+    const btn = this.btnExportAudio;
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+
+    try {
+      this.player.initAudioContext();
+      const blob = await this.ttsEngine.exportFullDocumentAudio(
+        this.currentDoc.sentences,
+        voice,
+        this.player.audioCtx,
+        (current, total) => {
+          btn.innerHTML = `<span style="font-size:0.7rem; font-weight:bold;">${current}/${total}</span>`;
+        }
+      );
+
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const cleanTitle = (this.currentDoc.title || 'Document').replace(/[^a-z0-9]/gi, '_');
+        a.download = `${cleanTitle}_${voice}_GeminiVoice.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } else {
+        alert('Failed to generate audio file.');
+      }
+    } catch (e) {
+      console.error('Audio export failed:', e);
+      alert('Error exporting audio file.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
     }
   }
 

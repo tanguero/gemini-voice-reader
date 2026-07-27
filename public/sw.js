@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gemini-reader-v20';
+const CACHE_NAME = 'gemini-reader-v21';
 const ASSETS = [
   './',
   './index.html',
