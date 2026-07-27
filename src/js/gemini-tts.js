@@ -245,20 +245,18 @@ export class GeminiTTSEngine {
     if (!this.hasApiKey()) {
       throw new Error('Please save your Gemini API Key in Settings ⚙️ to export HD Audio files.');
     }
-    if (!this.isGeminiVoice(voiceName)) {
-      throw new Error('Audio exporting is available for ✨ Gemini AI voices (Puck, Charon, Kore, Fenrir, Aoede).');
-    }
+    const targetVoice = this.isGeminiVoice(voiceName) ? voiceName : 'Kore';
 
     const pcmChunks = [];
 
     for (let i = 0; i < sentences.length; i++) {
       if (onProgress) onProgress(i + 1, sentences.length);
 
-      const cacheKey = `${voiceName}:${sentences[i].text}`;
+      const cacheKey = `${targetVoice}:${sentences[i].text}`;
       let audioItem = this.audioCache.get(cacheKey);
 
       if (!audioItem || !audioItem.pcmBytes) {
-        audioItem = await this.fetchGeminiSpeech(sentences[i].text, voiceName, audioCtx);
+        audioItem = await this.fetchGeminiSpeech(sentences[i].text, targetVoice, audioCtx);
         if (audioItem) {
           this.audioCache.set(cacheKey, audioItem);
         }
