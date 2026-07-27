@@ -341,6 +341,8 @@ class GeminiVoiceReaderApp {
         const group = document.getElementById('local-voices-group');
         if (!group || voices.length === 0) return;
 
+        const previousSelection = this.voiceSelect ? this.voiceSelect.value : null;
+
         group.innerHTML = '';
         
         // Sort Neural / Natural / Online high quality voices to the top
@@ -362,6 +364,13 @@ class GeminiVoiceReaderApp {
           opt.textContent = `${isNeural ? '✨ HD ' : ''}${v.name} (${v.lang})`;
           group.appendChild(opt);
         });
+
+        if (previousSelection && this.voiceSelect) {
+          const optionExists = Array.from(this.voiceSelect.options).some(opt => opt.value === previousSelection);
+          if (optionExists) {
+            this.voiceSelect.value = previousSelection;
+          }
+        }
       };
 
       loadVoices();

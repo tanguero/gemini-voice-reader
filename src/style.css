@@ -414,12 +414,14 @@ body.font-serif .reader-content {
 
 .engine-badge {
   font-size: 0.7rem;
-  font-weight: 600;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   width: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .engine-badge.gemini-active {

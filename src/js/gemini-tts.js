@@ -331,6 +331,9 @@ export class GeminiTTSEngine {
       match = voices.find(v => v.name.toLowerCase().includes(cleanTargetName));
     }
 
+    const isGeminiVoice = GEMINI_VOICES.map(v => v.toLowerCase()).includes(cleanTargetName);
+
+    if (!match && isGeminiVoice) {
       const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
       const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
       const pool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
@@ -350,9 +353,13 @@ export class GeminiTTSEngine {
       } else if (cleanTargetName === 'aoede') {
         match = pool.find(v => v.name.toLowerCase().includes('female')) || pool[0];
         utterance.pitch = 1.10;
-      } else {
-        match = pool[0];
       }
+    } else if (!match) {
+      const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
+      const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
+      const pool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
+      match = pool[0];
+    }
 
     if (match) {
       utterance.voice = match;
