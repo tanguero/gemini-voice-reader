@@ -109,7 +109,6 @@ export class GeminiTTSEngine {
 
     const base64Data = part.inlineData.data;
 
-    // Convert Base64 to ArrayBuffer
     const binaryString = atob(base64Data);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
@@ -117,8 +116,18 @@ export class GeminiTTSEngine {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Decode into AudioBuffer
-    return await audioCtx.decodeAudioData(bytes.buffer);
+    const mimeType = part.inlineData.mimeType || 'audio/wav';
+    const blob = new Blob([bytes], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+    let audioBuffer = null;
+    try {
+      audioBuffer = await audioCtx.decodeAudioData(bytes.buffer.slice(0));
+    } catch (e) {}
+
+    return {
+      blobUrl: blobUrl,
+      audioBuffer: audioBuffer
+    };
   }
 
   /**

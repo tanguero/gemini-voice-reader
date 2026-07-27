@@ -48,10 +48,40 @@ export class AudioPlayerController {
     }
   }
 
+  createSilentWavBlob() {
+    const sampleRate = 44100;
+    const numSamples = sampleRate * 3; // 3 seconds of real silence PCM
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    function writeString(offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    const blob = new Blob([buffer], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  }
+
   startBackgroundKeepAlive() {
     if (!this.keepAliveAudio) {
-      const silentWav = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-      this.keepAliveAudio = new Audio(silentWav);
+      const blobUrl = this.createSilentWavBlob();
+      this.keepAliveAudio = new Audio(blobUrl);
       this.keepAliveAudio.loop = true;
     }
     this.keepAliveAudio.play().catch(e => {});
@@ -112,23 +142,34 @@ export class AudioPlayerController {
 
     this.isPlaying = true;
 
-    // Check if AudioBuffer or SpeechSynthesisUtterance
-    if (audioItem instanceof AudioBuffer) {
-      const source = this.audioCtx.createBufferSource();
-      source.buffer = audioItem;
-      source.playbackRate.value = this.playbackRate;
-      source.connect(this.analyser);
+    // Check if Gemini Audio object ({ blobUrl, audioBuffer })
+    if (audioItem && audioItem.blobUrl) {
+      const htmlAudio = new Audio(audioItem.blobUrl);
+      htmlAudio.playbackRate = this.playbackRate;
 
-      source.onended = () => {
-        if (this.currentSource === source) {
+      htmlAudio.onended = () => {
+        if (this.currentHtmlAudio === htmlAudio) {
+          this.isPlaying = false;
+          if (onEndedCallback) onEndedCallback();
+        }
+      };
+      htmlAudio.onerror = () => {
+        if (this.currentHtmlAudio === htmlAudio) {
           this.isPlaying = false;
           if (onEndedCallback) onEndedCallback();
         }
       };
 
-      this.currentSource = source;
-      source.start(0);
-      this.startVisualizer();
+      this.currentHtmlAudio = htmlAudio;
+      htmlAudio.play().catch(e => {
+        // Fallback to web audio source node if HTML5 audio play fails
+        if (audioItem.audioBuffer) {
+          this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
+        }
+      });
+      this.startVisualizerMock();
+    } else if (audioItem instanceof AudioBuffer) {
+      this.playAudioBuffer(audioItem, onEndedCallback);
     } else if (audioItem instanceof SpeechSynthesisUtterance) {
       audioItem.rate = this.playbackRate;
       audioItem.onend = () => {
@@ -146,9 +187,35 @@ export class AudioPlayerController {
     }
   }
 
+  playAudioBuffer(audioBuffer, onEndedCallback) {
+    const source = this.audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.playbackRate.value = this.playbackRate;
+    source.connect(this.analyser);
+
+    source.onended = () => {
+      if (this.currentSource === source) {
+        this.isPlaying = false;
+        if (onEndedCallback) onEndedCallback();
+      }
+    };
+
+    this.currentSource = source;
+    source.start(0);
+    this.startVisualizer();
+  }
+
   stopCurrent() {
     this.isPlaying = false;
     this.stopBackgroundKeepAlive();
+
+    if (this.currentHtmlAudio) {
+      try {
+        this.currentHtmlAudio.pause();
+        this.currentHtmlAudio.currentTime = 0;
+      } catch (e) {}
+      this.currentHtmlAudio = null;
+    }
 
     if (this.currentSource) {
       try {
