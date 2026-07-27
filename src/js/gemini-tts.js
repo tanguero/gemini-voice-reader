@@ -340,15 +340,21 @@ export class GeminiTTSEngine {
     const isGeminiVoice = GEMINI_VOICES.map(v => v.toLowerCase()).includes(cleanTargetName);
 
     if (!match && isGeminiVoice) {
-      const googleVoices = voices.filter(v => v.name.toLowerCase().includes('google'));
-      const activePool = googleVoices.length > 0 ? googleVoices : voices;
+      const isMale = (v) => {
+        const name = v.name.toLowerCase();
+        return (name.includes('male') && !name.includes('female')) || name.includes('david') || name.includes('mark') || name.includes('richard') || name.includes('guy') || name.includes('george');
+      };
+      const isFemale = (v) => {
+        const name = v.name.toLowerCase();
+        return name.includes('female') || name.includes('zira') || name.includes('linda') || name.includes('jenny') || name.includes('aria');
+      };
 
-      const googleUkMale = voices.find(v => v.name.toLowerCase().includes('uk english male') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && v.name.toLowerCase().includes('male')));
-      const googleUsMale = voices.find(v => v.name.toLowerCase().includes('us english') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('us')));
-      const googleUkFemale = voices.find(v => v.name.toLowerCase().includes('uk english female') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && v.name.toLowerCase().includes('female')));
+      const googleUkMale = voices.find(v => (v.name.toLowerCase().includes('uk english male') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && isMale(v))) && !v.name.toLowerCase().includes('female'));
+      const googleUsMale = voices.find(v => (v.name.toLowerCase().includes('us english') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('us') && isMale(v))) && !v.name.toLowerCase().includes('female'));
+      const googleUkFemale = voices.find(v => v.name.toLowerCase().includes('uk english female') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && isFemale(v)));
 
       if (cleanTargetName === 'charon' || cleanTargetName === 'fenrir') {
-        match = googleUkMale || activePool.find(v => v.name.toLowerCase().includes('male')) || activePool[0];
+        match = googleUkMale || activePool.find(isMale) || activePool[0];
         utterance.pitch = cleanTargetName === 'charon' ? 0.88 : 1.0;
         utterance.rate = 1.0;
       } else if (cleanTargetName === 'puck') {
@@ -356,7 +362,7 @@ export class GeminiTTSEngine {
         utterance.pitch = 1.10;
         utterance.rate = 1.05;
       } else if (cleanTargetName === 'kore' || cleanTargetName === 'aoede') {
-        match = googleUkFemale || activePool.find(v => v.name.toLowerCase().includes('female')) || activePool[0];
+        match = googleUkFemale || activePool.find(isFemale) || activePool[0];
         utterance.pitch = cleanTargetName === 'kore' ? 1.0 : 1.12;
         utterance.rate = 1.0;
       }

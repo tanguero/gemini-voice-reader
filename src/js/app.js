@@ -376,10 +376,13 @@ class GeminiVoiceReaderApp {
           group.appendChild(opt);
         });
 
-        if (previousSelection && this.voiceSelect) {
-          const optionExists = Array.from(this.voiceSelect.options).some(opt => opt.value === previousSelection);
+        const targetVoice = localStorage.getItem('selected_voice') || previousSelection;
+        if (targetVoice && this.voiceSelect) {
+          const optionExists = Array.from(this.voiceSelect.options).some(opt => opt.value === targetVoice);
           if (optionExists) {
-            this.voiceSelect.value = previousSelection;
+            this.voiceSelect.value = targetVoice;
+            this.player.selectedVoice = targetVoice;
+            this.updateVoiceBadge();
           }
         }
       };
