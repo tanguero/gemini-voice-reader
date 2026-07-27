@@ -612,11 +612,8 @@ class GeminiVoiceReaderApp {
         }
       });
     } catch (err) {
-      console.error('Sentence audio error:', err);
+      console.warn('Sentence audio playback error:', err);
       this.pausePlayback();
-      if (err && err.message) {
-        alert(err.message);
-      }
     }
   }
 

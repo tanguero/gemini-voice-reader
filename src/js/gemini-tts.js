@@ -123,9 +123,8 @@ export class GeminiTTSEngine {
           return audioBuffer;
         }
       } catch (err) {
-        console.error('Gemini API speech generation failed:', err);
+        console.warn('Gemini API speech generation failed, falling back to Web Speech API:', err);
         this.lastError = err.message;
-        throw err;
       }
     }
 
