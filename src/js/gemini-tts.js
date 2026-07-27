@@ -137,8 +137,11 @@ export class GeminiTTSEngine {
    * Calls Gemini 2.0 Flash Audio REST API
    */
   async fetchGeminiSpeech(text, voiceName, audioCtx) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
-    
+    const modelsToTry = [
+      'gemini-2.0-flash-exp',
+      'gemini-2.0-flash'
+    ];
+
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
 
     const requestPayload = {
@@ -161,62 +164,77 @@ export class GeminiTTSEngine {
       }
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestPayload)
-    });
+    let lastErr = null;
 
-    if (!res.ok) {
-      if (res.status === 401 || res.status === 403) {
-        throw new Error('Invalid API Key (HTTP 401/403). Please copy a free Gemini API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
+    for (const model of modelsToTry) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
+      
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload)
+        });
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('Invalid API Key (HTTP 401/403). Please copy a free Gemini API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
+          }
+          const errText = await res.text();
+          lastErr = new Error(`Gemini API Error (${res.status}): ${errText}`);
+          continue;
+        }
+
+        const data = await res.json();
+        const candidate = data.candidates?.[0];
+        const part = candidate?.content?.parts?.[0];
+
+        if (!part || !part.inlineData) {
+          lastErr = new Error('No audio content returned from Gemini API');
+          continue;
+        }
+
+        const base64Data = part.inlineData.data;
+
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const mimeType = (part.inlineData.mimeType || '').toLowerCase();
+        let finalWavBytes = bytes;
+
+        // Gemini 2.0 Flash returns raw 24kHz PCM (audio/pcm or audio/raw).
+        // Wrap with a 44-byte WAV header if it doesn't already start with 'RIFF'
+        const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
+        if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
+          finalWavBytes = pcmToWav(bytes, 24000);
+        }
+
+        const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
+        const blobUrl = URL.createObjectURL(blob);
+        let audioBuffer = null;
+        try {
+          const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
+          audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
+        } catch (e) {
+          console.error('AudioContext decodeAudioData error:', e);
+        }
+
+        return {
+          blobUrl: blobUrl,
+          audioBuffer: audioBuffer,
+          pcmBytes: bytes
+        };
+      } catch (e) {
+        if (e.message && (e.message.includes('401') || e.message.includes('403'))) throw e;
+        lastErr = e;
       }
-      const errText = await res.text();
-      throw new Error(`Gemini API Error (${res.status}): ${errText}`);
     }
 
-    const data = await res.json();
-    const candidate = data.candidates?.[0];
-    const part = candidate?.content?.parts?.[0];
-
-    if (!part || !part.inlineData) {
-      throw new Error('No audio content returned from Gemini API');
-    }
-
-    const base64Data = part.inlineData.data;
-
-    const binaryString = atob(base64Data);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    const mimeType = (part.inlineData.mimeType || '').toLowerCase();
-    let finalWavBytes = bytes;
-
-    // Gemini 2.0 Flash returns raw 24kHz PCM (audio/pcm or audio/raw).
-    // Wrap with a 44-byte WAV header if it doesn't already start with 'RIFF'
-    const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
-    if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
-      finalWavBytes = pcmToWav(bytes, 24000);
-    }
-
-    const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
-    const blobUrl = URL.createObjectURL(blob);
-    let audioBuffer = null;
-    try {
-      const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
-      audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
-    } catch (e) {
-      console.error('AudioContext decodeAudioData error:', e);
-    }
-
-    return {
-      blobUrl: blobUrl,
-      audioBuffer: audioBuffer,
-      pcmBytes: bytes
-    };
+    throw lastErr || new Error('Failed to generate speech with Gemini API.');
   }
 
   /**
