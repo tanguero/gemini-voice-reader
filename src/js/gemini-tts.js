@@ -177,10 +177,11 @@ export class GeminiTTSEngine {
         });
 
         if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            throw new Error('Invalid API Key (HTTP 401/403). Please copy a free Gemini API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
-          }
           const errText = await res.text();
+          const isKeyError = res.status === 401 || res.status === 403 || errText.includes('API_KEY_INVALID') || errText.includes('API key not valid');
+          if (isKeyError) {
+            throw new Error('Invalid Gemini API Key. Please copy your free API Key starting with "AIzaSy" from Google AI Studio (aistudio.google.com).');
+          }
           lastErr = new Error(`Gemini API Error (${res.status}): ${errText}`);
           continue;
         }
