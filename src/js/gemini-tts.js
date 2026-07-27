@@ -213,20 +213,34 @@ export class GeminiTTSEngine {
    */
   async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
     const pcmChunks = [];
+    const silenceChunk = new Uint8Array(24000); // 0.5s silence fallback per failed sentence
 
     for (let i = 0; i < sentences.length; i++) {
       if (onProgress) onProgress(i + 1, sentences.length);
-      const audioItem = await this.getSentenceAudio(sentences[i].text, voiceName, audioCtx);
 
+      let audioItem = null;
+      try {
+        audioItem = await this.getSentenceAudio(sentences[i].text, voiceName, audioCtx);
+      } catch (e) {}
+
+      let success = false;
       if (audioItem && audioItem.blobUrl) {
         try {
           const res = await fetch(audioItem.blobUrl);
           const arrayBuf = await res.arrayBuffer();
           if (arrayBuf.byteLength > 44) {
             pcmChunks.push(new Uint8Array(arrayBuf, 44));
+            success = true;
           }
         } catch (e) {}
       }
+
+      if (!success) {
+        pcmChunks.push(silenceChunk);
+      }
+
+      // Small 100ms pacing delay between sentence requests
+      await new Promise(r => setTimeout(r, 100));
     }
 
     if (pcmChunks.length === 0) return null;
