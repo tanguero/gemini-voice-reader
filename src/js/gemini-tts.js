@@ -280,11 +280,10 @@ export class GeminiTTSEngine {
         }
       }
 
-      const silenceChunk = new Uint8Array(24000);
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        pcmChunks.push(silenceChunk);
+        throw new Error(`Audio generation failed for sentence ${i + 1}. Please verify your Gemini API key in Settings ⚙️.`);
       }
 
       // Small 80ms pacing delay between sentence requests

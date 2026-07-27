@@ -709,7 +709,7 @@ class GeminiVoiceReaderApp {
     }
 
     if (!this.ttsEngine.hasApiKey()) {
-      alert('Please save your Gemini API Key in Settings ⚙️ to export HD Audio files.');
+      alert('Please save your free Gemini API Key in Settings ⚙️ to export HD Audio files.');
       this.inputApiKey.value = this.ttsEngine.apiKey;
       this.showModal(this.modalSettings);
       return;
