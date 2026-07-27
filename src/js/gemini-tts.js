@@ -4,7 +4,30 @@
 
 const GEMINI_VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Aoede'];
 
-function pcmToWav(pcmBytes, sampleRate = 24000) {
+function resamplePcm16(pcmBytes, fromRate = 24000, toRate = 44100) {
+  if (!pcmBytes || pcmBytes.length < 2) return pcmBytes;
+  const numSamplesIn = Math.floor(pcmBytes.length / 2);
+  const samplesIn = new Int16Array(pcmBytes.buffer, pcmBytes.byteOffset, numSamplesIn);
+
+  const ratio = toRate / fromRate;
+  const numSamplesOut = Math.floor(numSamplesIn * ratio);
+  const samplesOut = new Int16Array(numSamplesOut);
+
+  for (let i = 0; i < numSamplesOut; i++) {
+    const srcPos = i / ratio;
+    const idx = Math.floor(srcPos);
+    const frac = srcPos - idx;
+
+    const s1 = samplesIn[idx] || 0;
+    const s2 = samplesIn[idx + 1] || s1;
+
+    samplesOut[i] = Math.round(s1 + frac * (s2 - s1));
+  }
+
+  return new Uint8Array(samplesOut.buffer);
+}
+
+function pcmToWav(pcmBytes, sampleRate = 44100) {
   const numChannels = 1;
   const bitsPerSample = 16;
   const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
@@ -263,7 +286,8 @@ export class GeminiTTSEngine {
       offset += chunk.length;
     }
 
-    const finalWav = pcmToWav(combinedPcm, 24000);
+    const pcm44k = resamplePcm16(combinedPcm, 24000, 44100);
+    const finalWav = pcmToWav(pcm44k, 44100);
     return new Blob([finalWav], { type: 'audio/wav' });
   }
 
