@@ -184,7 +184,8 @@ export class GeminiTTSEngine {
 
     return {
       blobUrl: blobUrl,
-      audioBuffer: audioBuffer
+      audioBuffer: audioBuffer,
+      pcmBytes: bytes
     };
   }
 
@@ -224,7 +225,10 @@ export class GeminiTTSEngine {
       } catch (e) {}
 
       let success = false;
-      if (audioItem && audioItem.blobUrl) {
+      if (audioItem && audioItem.pcmBytes) {
+        pcmChunks.push(audioItem.pcmBytes);
+        success = true;
+      } else if (audioItem && audioItem.blobUrl) {
         try {
           const res = await fetch(audioItem.blobUrl);
           const arrayBuf = await res.arrayBuffer();
@@ -239,8 +243,8 @@ export class GeminiTTSEngine {
         pcmChunks.push(silenceChunk);
       }
 
-      // Small 100ms pacing delay between sentence requests
-      await new Promise(r => setTimeout(r, 100));
+      // Small 80ms pacing delay between sentence requests
+      await new Promise(r => setTimeout(r, 80));
     }
 
     if (pcmChunks.length === 0) return null;

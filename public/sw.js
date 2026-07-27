@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gemini-reader-v28';
+const CACHE_NAME = 'gemini-reader-v29';
 const ASSETS = [
   './',
   './index.html',
@@ -31,7 +31,7 @@ self.addEventListener('activate', (e) => {
 
 // Network-First strategy: Always fetch fresh code from server if online, fallback to cache if offline
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || e.request.url.includes('generativelanguage.googleapis.com')) {
+  if (e.request.method !== 'GET' || e.request.url.includes('generativelanguage.googleapis.com') || e.request.url.startsWith('blob:') || e.request.url.startsWith('data:')) {
     return;
   }
   e.respondWith(
