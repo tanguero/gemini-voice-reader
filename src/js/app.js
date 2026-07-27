@@ -436,7 +436,7 @@ class GeminiVoiceReaderApp {
     this.libraryList.innerHTML = '';
 
     if (docs.length === 0) {
-      this.libraryList.innerHTML = '<div class="form-help">No saved documents yet.</div>';
+      this.libraryList.innerHTML = '<div class="form-help" style="padding: 1rem;">No saved documents yet.</div>';
       return;
     }
 
@@ -444,20 +444,41 @@ class GeminiVoiceReaderApp {
       const item = document.createElement('div');
       item.className = `library-item ${this.currentDoc && this.currentDoc.id === d.id ? 'active' : ''}`;
       item.innerHTML = `
-        <div class="library-item-title">${d.title}</div>
-        <div class="library-item-meta">
-          <span>${d.totalSentences || 0} sentences</span>
-          <span>${new Date(d.lastReadAt).toLocaleDateString()}</span>
+        <div class="library-item-content">
+          <div class="library-item-title">${d.title}</div>
+          <div class="library-item-meta">
+            <span>${d.totalSentences || 0} sentences</span>
+            <span>${new Date(d.lastReadAt).toLocaleDateString()}</span>
+          </div>
         </div>
+        <button class="btn-icon btn-delete-doc" title="Delete Document">
+          <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
       `;
-      item.addEventListener('click', () => {
+
+      item.querySelector('.library-item-content').addEventListener('click', () => {
         const fullParsed = DocumentParser.parseText(
           d.paragraphs.map(p => p.text).join('\n\n'),
           d.title
         );
         fullParsed.id = d.id;
         this.loadDocument(fullParsed, d.currentSentenceIndex || 0);
+        this.closeSidebar();
       });
+
+      const btnDelete = item.querySelector('.btn-delete-doc');
+      btnDelete.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete "${d.title}" from library?`)) {
+          this.library.deleteDoc(d.id);
+          if (this.currentDoc && this.currentDoc.id === d.id) {
+            this.loadSampleDoc();
+          } else {
+            this.renderLibrarySidebar();
+          }
+        }
+      });
+
       this.libraryList.appendChild(item);
     });
   }
