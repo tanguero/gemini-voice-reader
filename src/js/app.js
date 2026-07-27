@@ -176,6 +176,25 @@ class GeminiVoiceReaderApp {
       this.hideModal(this.modalSettings);
     });
 
+    const btnForceUpdate = document.getElementById('btn-force-update');
+    if (btnForceUpdate) {
+      btnForceUpdate.addEventListener('click', () => {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            for (let reg of regs) reg.unregister();
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            for (let name of names) caches.delete(name);
+          });
+        }
+        setTimeout(() => {
+          window.location.reload(true);
+        }, 300);
+      });
+    }
+
     // Font Toggle (Serif vs Sans)
     this.btnFontToggle.addEventListener('click', () => {
       document.body.classList.toggle('font-serif');
