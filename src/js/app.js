@@ -191,12 +191,12 @@ class GeminiVoiceReaderApp {
     this.voiceSelect.addEventListener('change', (e) => {
       const selected = e.target.value;
       this.player.selectedVoice = selected;
-      this.ttsEngine.audioCache.clear(); // Flush audio cache for new voice
+      this.ttsEngine.invalidateCache(); // Flush audio cache & cancel in-flight old voice pre-fetches
       this.updateVoiceBadge();
 
       if (this.isPlaybackRequested || this.player.isPlaying) {
         this.player.stopCurrent();
-        this.playSentence(this.currentSentenceIndex);
+        this.startPlayback();
       }
     });
 

@@ -10,19 +10,25 @@ export class GeminiTTSEngine {
     this.stylePrompt = localStorage.getItem('gemini_voice_prompt') || 'Read this text naturally, clearly, and expressively like an audiobook narrator.';
     this.audioCache = new Map(); // Cache for sentence index -> AudioBuffer
     this.prefetchQueue = new Set();
-    this.speechSynth = window.speechSynthesis;
+    this.speechSynth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+    this.prefetchSessionId = 0;
+  }
+
+  invalidateCache() {
+    this.prefetchSessionId++;
+    this.audioCache.clear();
   }
 
   setApiKey(key) {
     this.apiKey = key.trim();
     localStorage.setItem('gemini_api_key', this.apiKey);
-    this.audioCache.clear(); // Clear cache when API key changes
+    this.invalidateCache();
   }
 
   setStylePrompt(prompt) {
     this.stylePrompt = prompt;
     localStorage.setItem('gemini_voice_prompt', prompt);
-    this.audioCache.clear();
+    this.invalidateCache();
   }
 
   hasApiKey() {
@@ -46,10 +52,12 @@ export class GeminiTTSEngine {
       return this.audioCache.get(cacheKey);
     }
 
+    const currentSession = this.prefetchSessionId;
+
     if (this.isGeminiVoice(voiceName) && this.hasApiKey()) {
       try {
         const audioBuffer = await this.fetchGeminiSpeech(text, voiceName, audioCtx);
-        if (audioBuffer) {
+        if (audioBuffer && currentSession === this.prefetchSessionId) {
           this.audioCache.set(cacheKey, audioBuffer);
           return audioBuffer;
         }
@@ -135,6 +143,8 @@ export class GeminiTTSEngine {
    */
   prefetchUpcoming(sentences, startIndex, count = 3, voiceName = 'Kore', audioCtx) {
     if (!this.isGeminiVoice(voiceName) || !this.hasApiKey()) return;
+
+    const currentSession = this.prefetchSessionId;
 
     for (let i = startIndex; i < Math.min(startIndex + count, sentences.length); i++) {
       const s = sentences[i];
