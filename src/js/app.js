@@ -110,6 +110,7 @@ class GeminiVoiceReaderApp {
   }
 
   openSidebar() {
+    this.renderLibrarySidebar();
     this.sidebar.classList.remove('closed');
     if (this.sidebarBackdrop) {
       this.sidebarBackdrop.classList.remove('hidden');
@@ -451,8 +452,8 @@ class GeminiVoiceReaderApp {
             <span>${new Date(d.lastReadAt).toLocaleDateString()}</span>
           </div>
         </div>
-        <button class="btn-icon btn-delete-doc" title="Delete Document">
-          <svg viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        <button class="btn-delete-doc" title="Delete Document" style="display: flex; align-items: center; justify-content: center; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 0.4rem 0.6rem; color: #ef4444; font-size: 0.9rem; cursor: pointer; flex-shrink: 0;">
+          <span style="font-size: 1rem; margin-right: 0.2rem;">🗑️</span> Delete
         </button>
       `;
 
