@@ -719,7 +719,7 @@ class GeminiVoiceReaderApp {
       }
     } catch (e) {
       console.error('Audio export failed:', e);
-      alert('Error exporting audio file.');
+      alert(e.message || 'Error exporting audio file.');
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHtml;
