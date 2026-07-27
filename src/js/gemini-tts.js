@@ -291,10 +291,11 @@ export class GeminiTTSEngine {
     });
   }
 
-  /**
-   * Exports full document text as a single downloadable WAV audio file
-   */
   async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
+    if (!this.hasApiKey()) {
+      throw new Error('MISSING_KEY');
+    }
+
     const targetVoice = this.isGeminiVoice(voiceName) ? voiceName : 'Kore';
     const pcmChunks = [];
 
@@ -314,11 +315,10 @@ export class GeminiTTSEngine {
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        const fallbackBytes = await this.renderFallbackPcm(sentences[i].text, targetVoice, audioCtx);
-        pcmChunks.push(fallbackBytes);
+        throw new Error('MISSING_KEY');
       }
 
-      await new Promise(r => setTimeout(r, 30));
+      await new Promise(r => setTimeout(r, 40));
     }
 
     if (pcmChunks.length === 0) {
