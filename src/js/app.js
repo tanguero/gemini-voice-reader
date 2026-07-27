@@ -470,17 +470,37 @@ class GeminiVoiceReaderApp {
       });
 
       const btnDelete = item.querySelector('.btn-delete-doc');
-      btnDelete.addEventListener('click', (e) => {
+      const handleDelete = (e) => {
+        e.preventDefault();
         e.stopPropagation();
+
         if (confirm(`Delete "${d.title}" from library?`)) {
           this.library.deleteDoc(d.id);
+          const remainingDocs = this.library.getAllDocs();
+
           if (this.currentDoc && this.currentDoc.id === d.id) {
-            this.loadSampleDoc();
+            this.player.stopCurrent();
+            if (remainingDocs.length > 0) {
+              const nextDoc = remainingDocs[0];
+              const fullParsed = DocumentParser.parseText(
+                nextDoc.paragraphs.map(p => p.text).join('\n\n'),
+                nextDoc.title
+              );
+              fullParsed.id = nextDoc.id;
+              this.loadDocument(fullParsed, nextDoc.currentSentenceIndex || 0);
+            } else {
+              this.currentDoc = null;
+              this.readerContent.innerHTML = '<div class="empty-state">No active document. Import a text file or paste article text to begin!</div>';
+              this.renderLibrarySidebar();
+            }
           } else {
             this.renderLibrarySidebar();
           }
         }
-      });
+      };
+
+      btnDelete.addEventListener('click', handleDelete);
+      btnDelete.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 
       this.libraryList.appendChild(item);
     });
