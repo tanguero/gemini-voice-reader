@@ -259,39 +259,11 @@ export class GeminiTTSEngine {
     }
   }
 
-  async renderSpeechSynthesizerPcm(text, voiceName) {
-    const sampleRate = 24000;
-    const words = text.trim().split(/\s+/).length;
-    const durationSec = Math.max(1.0, words * 0.32 + 0.4);
-    const numSamples = Math.floor(sampleRate * durationSec);
-    const pcmBytes = new Uint8Array(numSamples * 2);
-    const view = new DataView(pcmBytes.buffer);
-
-    const isFemale = voiceName && (voiceName.toLowerCase().includes('female') || voiceName === 'Kore' || voiceName === 'Aoede');
-    const pitch = isFemale ? 210 : 125;
-    const formants = isFemale ? [500, 1500, 2800] : [400, 1200, 2400];
-
-    for (let i = 0; i < numSamples; i++) {
-      const t = i / sampleRate;
-      const attack = Math.min(1.0, i / (sampleRate * 0.05));
-      const decay = Math.min(1.0, (numSamples - i) / (sampleRate * 0.08));
-      const env = attack * decay * 0.25;
-
-      let sample = 0;
-      for (const f of formants) {
-        sample += Math.sin(2 * Math.PI * f * t) * (300 / f);
-      }
-      sample += Math.sin(2 * Math.PI * pitch * t) * 0.5;
-
-      const val = Math.max(-1.0, Math.min(1.0, sample * env));
-      const sample16 = Math.max(-32768, Math.min(32767, Math.floor(val * 32767)));
-      view.setInt16(i * 2, sample16, true);
+  async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
+    if (!this.hasApiKey()) {
+      throw new Error('MISSING_KEY');
     }
 
-    return pcmBytes;
-  }
-
-  async exportFullDocumentAudio(sentences, voiceName, audioCtx, onProgress) {
     const targetVoice = this.isGeminiVoice(voiceName) ? voiceName : 'Kore';
     const pcmChunks = [];
 
@@ -311,11 +283,10 @@ export class GeminiTTSEngine {
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        const speechBytes = await this.renderSpeechSynthesizerPcm(sentences[i].text, targetVoice);
-        pcmChunks.push(speechBytes);
+        throw new Error('MISSING_KEY');
       }
 
-      await new Promise(r => setTimeout(r, 30));
+      await new Promise(r => setTimeout(r, 40));
     }
 
     if (pcmChunks.length === 0) {
