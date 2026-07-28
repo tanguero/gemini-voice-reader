@@ -575,6 +575,7 @@ class GeminiVoiceReaderApp {
   pausePlayback() {
     this.isPlaybackRequested = false;
     this.player.stopCurrent();
+    this.player.stopBackgroundKeepAlive();
     this.updatePlayPauseUI(false);
   }
 

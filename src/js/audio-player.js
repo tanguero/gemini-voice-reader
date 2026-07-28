@@ -78,19 +78,40 @@ export class AudioPlayerController {
     return URL.createObjectURL(blob);
   }
 
+  async requestWakeLock() {
+    if ('wakeLock' in navigator && !this.wakeLock) {
+      try {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+      } catch (e) {}
+    }
+  }
+
+  releaseWakeLock() {
+    if (this.wakeLock) {
+      this.wakeLock.release().catch(e => {});
+      this.wakeLock = null;
+    }
+  }
+
   startBackgroundKeepAlive() {
     if (!this.keepAliveAudio) {
       const blobUrl = this.createSilentWavBlob();
       this.keepAliveAudio = new Audio(blobUrl);
       this.keepAliveAudio.loop = true;
+      this.keepAliveAudio.setAttribute('playsinline', '');
+      this.keepAliveAudio.setAttribute('x-webkit-airplay', 'allow');
+      this.keepAliveAudio.style.display = 'none';
+      document.body.appendChild(this.keepAliveAudio);
     }
     this.keepAliveAudio.play().catch(e => {});
+    this.requestWakeLock();
   }
 
   stopBackgroundKeepAlive() {
     if (this.keepAliveAudio) {
       this.keepAliveAudio.pause();
     }
+    this.releaseWakeLock();
   }
 
   initAudioContext() {
@@ -177,12 +198,6 @@ export class AudioPlayerController {
 
       audioItem.onend = () => {
         if (this.activeUtterance !== currentUtterance) return;
-        const elapsed = Date.now() - startTime;
-        if (document.hidden && elapsed < 300) {
-          // Screen lock aborted Web Speech: stop playback instead of skipping sentences
-          this.isPlaying = false;
-          return;
-        }
         this.isPlaying = false;
         if (onEndedCallback) onEndedCallback();
       };
@@ -190,7 +205,7 @@ export class AudioPlayerController {
       audioItem.onerror = () => {
         if (this.activeUtterance !== currentUtterance) return;
         this.isPlaying = false;
-        if (!document.hidden && onEndedCallback) onEndedCallback();
+        if (onEndedCallback) onEndedCallback();
       };
       
       if ('speechSynthesis' in window) {
