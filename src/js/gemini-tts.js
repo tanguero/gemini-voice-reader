@@ -142,12 +142,13 @@ export class GeminiTTSEngine {
     ];
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
+    const promptText = this.stylePrompt ? `${this.stylePrompt}\nText to read: "${text}"` : `Please read this sentence aloud: "${text}"`;
 
     const requestPayload = {
       contents: [
         {
           parts: [
-            { text: `Please read this sentence aloud: "${text}"` }
+            { text: promptText }
           ]
         }
       ],
@@ -311,9 +312,10 @@ export class GeminiTTSEngine {
    */
   createWebSpeechUtterance(text, voiceName) {
     const utterance = new SpeechSynthesisUtterance(text);
-    const voices = this.speechSynth.getVoices();
-    
-    if (!voices || voices.length === 0) {
+    if (!this.speechSynth) return utterance;
+
+    const voices = this.speechSynth.getVoices() || [];
+    if (voices.length === 0) {
       return utterance;
     }
 
@@ -338,6 +340,10 @@ export class GeminiTTSEngine {
         const name = v.name.toLowerCase();
         return name.includes('female') || name.includes('zira') || name.includes('linda') || name.includes('jenny') || name.includes('aria');
       };
+
+      const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
+      const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
+      const activePool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
 
       const googleUkMale = voices.find(v => (v.name.toLowerCase().includes('uk english male') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && isMale(v))) && !v.name.toLowerCase().includes('female'));
       const googleUsMale = voices.find(v => (v.name.toLowerCase().includes('us english') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('us') && isMale(v))) && !v.name.toLowerCase().includes('female'));

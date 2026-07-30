@@ -238,13 +238,20 @@ class GeminiVoiceReaderApp {
       }
     });
 
-    // Speed Cycle
-    this.btnSpeed.addEventListener('click', () => {
-      this.currentSpeedIdx = (this.currentSpeedIdx + 1) % this.speedRates.length;
-      const rate = this.speedRates[this.currentSpeedIdx];
-      this.speedLabel.textContent = `${rate}x`;
-      this.player.setPlaybackRate(rate);
-    });
+    // Speed Controls (- / + / Click label to reset)
+    this.btnSpeedDown = document.getElementById('btn-speed-down');
+    this.btnSpeedUp = document.getElementById('btn-speed-up');
+    this.btnSpeedLabel = document.getElementById('btn-speed-label');
+
+    if (this.btnSpeedDown) {
+      this.btnSpeedDown.addEventListener('click', () => this.changeSpeed(-1));
+    }
+    if (this.btnSpeedUp) {
+      this.btnSpeedUp.addEventListener('click', () => this.changeSpeed(1));
+    }
+    if (this.btnSpeedLabel) {
+      this.btnSpeedLabel.addEventListener('click', () => this.changeSpeed(0));
+    }
 
     // Progress Bar Seeking
     this.progressTrack.addEventListener('click', (e) => {
@@ -341,8 +348,33 @@ class GeminiVoiceReaderApp {
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
         this.skipParagraph(-1);
+      } else if (e.key === '-' || e.key === '[') {
+        e.preventDefault();
+        this.changeSpeed(-1);
+      } else if (e.key === '=' || e.key === '+' || e.key === ']') {
+        e.preventDefault();
+        this.changeSpeed(1);
       }
     });
+  }
+
+  /**
+   * Adjust playback speed step (-1 = decrease, +1 = increase, 0 = reset to 1.0x)
+   */
+  changeSpeed(delta) {
+    if (delta === 0) {
+      this.currentSpeedIdx = 2; // Reset to 1.0x (speedRates[2])
+    } else if (delta < 0) {
+      this.currentSpeedIdx = Math.max(0, this.currentSpeedIdx - 1);
+    } else {
+      this.currentSpeedIdx = Math.min(this.speedRates.length - 1, this.currentSpeedIdx + 1);
+    }
+
+    const rate = this.speedRates[this.currentSpeedIdx];
+    if (this.speedLabel) {
+      this.speedLabel.textContent = `${rate}x`;
+    }
+    this.player.setPlaybackRate(rate);
   }
 
   populateLocalVoices() {

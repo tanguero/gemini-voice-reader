@@ -74,7 +74,20 @@ export class DocumentParser {
     const title = file.name.replace(/\.[^/.]+$/, "");
     const ext = file.name.split('.').pop().toLowerCase();
 
-    if (ext === 'txt' || ext === 'md' || ext === 'json' || ext === 'html') {
+    if (ext === 'html') {
+      const rawHtml = await file.text();
+      try {
+        const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+        doc.querySelectorAll('script, style, noscript, svg').forEach(el => el.remove());
+        const text = doc.body ? (doc.body.innerText || doc.body.textContent || '') : rawHtml;
+        return { text: text.trim(), title };
+      } catch (e) {
+        const text = rawHtml.replace(/<[^>]*>/g, ' ');
+        return { text: text.trim(), title };
+      }
+    }
+
+    if (ext === 'txt' || ext === 'md' || ext === 'json') {
       const text = await file.text();
       return { text, title };
     }

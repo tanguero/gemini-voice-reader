@@ -432,6 +432,63 @@ body.font-serif .reader-content {
 
 .player-right {
   justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Speed Stepper Control (- / +) */
+.speed-stepper-container {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(19, 27, 46, 0.9);
+  border: 1px solid var(--border-highlight);
+  border-radius: 20px;
+  padding: 2px 4px;
+  gap: 1px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-speed-step {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-speed-step:hover {
+  color: #ffffff;
+  background: var(--primary-light);
+}
+
+.btn-speed-step:active {
+  transform: scale(0.9);
+}
+
+.speed-display-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+  min-width: 40px;
+  text-align: center;
+}
+
+.speed-display-btn:hover {
+  color: #ffffff;
 }
 
 .player-center {
