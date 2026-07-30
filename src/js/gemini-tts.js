@@ -237,6 +237,7 @@ export class GeminiTTSEngine {
       }
     }
 
+    if (lastErr) throw lastErr;
     return null;
   }
 
@@ -284,7 +285,7 @@ export class GeminiTTSEngine {
       if (audioItem && audioItem.pcmBytes) {
         pcmChunks.push(audioItem.pcmBytes);
       } else {
-        throw new Error('MISSING_KEY');
+        throw new Error(`Speech synthesis failed at sentence ${i + 1}. Please verify your Gemini API key and network connection.`);
       }
 
       await new Promise(r => setTimeout(r, 40));

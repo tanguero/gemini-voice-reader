@@ -184,6 +184,13 @@ class GeminiVoiceReaderApp {
       this.ttsEngine.setStylePrompt(this.selectStylePrompt.value);
       this.updateVoiceBadge();
       this.hideModal(this.modalSettings);
+
+      if (this.pendingExportOnSave) {
+        this.pendingExportOnSave = false;
+        if (this.ttsEngine.hasApiKey()) {
+          this.handleExportAudio();
+        }
+      }
     });
 
     const btnForceUpdate = document.getElementById('btn-force-update');
@@ -759,8 +766,11 @@ class GeminiVoiceReaderApp {
     }
 
     if (!this.ttsEngine.hasApiKey()) {
+      alert('Exporting full document audio into a WAV file requires a free Gemini API Key.\n\nPlease enter your key in the Settings window.');
       this.inputApiKey.value = this.ttsEngine.apiKey;
+      this.pendingExportOnSave = true;
       this.showModal(this.modalSettings);
+      setTimeout(() => this.inputApiKey.focus(), 200);
       return;
     }
 
@@ -797,9 +807,13 @@ class GeminiVoiceReaderApp {
       }
     } catch (e) {
       if (e.message === 'MISSING_KEY') {
+        alert('Exporting audio requires a valid Gemini API Key. Please save your key in Settings.');
         this.inputApiKey.value = this.ttsEngine.apiKey;
+        this.pendingExportOnSave = true;
         this.showModal(this.modalSettings);
+        setTimeout(() => this.inputApiKey.focus(), 200);
       } else {
+        alert(`Audio Export Error:\n${e.message || e}`);
         console.error('Audio export failed:', e);
       }
     } finally {
