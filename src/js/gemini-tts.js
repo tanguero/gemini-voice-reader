@@ -137,15 +137,11 @@ export class GeminiTTSEngine {
    */
   async fetchGeminiSpeech(text, voiceName, audioCtx) {
     const modelsToTry = [
-      'gemini-2.0-flash-exp',
-      'gemini-2.0-flash-preview',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash-lite-preview-02-05',
-      'gemini-exp-1206'
+      'gemini-2.0-flash-exp'
     ];
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
-    const promptText = this.stylePrompt ? `${this.stylePrompt}\nText to read: "${text}"` : `Please read this sentence aloud: "${text}"`;
+    const promptText = this.stylePrompt ? `${this.stylePrompt}\n\n${text}` : text;
 
     const requestPayload = {
       contents: [
@@ -167,6 +163,7 @@ export class GeminiTTSEngine {
       }
     };
 
+    let firstErr = null;
     let lastErr = null;
 
     for (const model of modelsToTry) {
@@ -188,7 +185,9 @@ export class GeminiTTSEngine {
           if (isKeyError) {
             throw new Error('Invalid Gemini API Key. Please verify your API Key from Google AI Studio (aistudio.google.com).');
           }
-          lastErr = new Error(`Gemini API Error (${res.status}): ${errText}`);
+          const err = new Error(`Gemini API Error (${res.status}): ${errText}`);
+          if (!firstErr) firstErr = err;
+          lastErr = err;
           continue;
         }
 
@@ -197,7 +196,9 @@ export class GeminiTTSEngine {
         const part = candidate?.content?.parts?.[0];
 
         if (!part || !part.inlineData) {
-          lastErr = new Error('No audio content returned from Gemini API');
+          const err = new Error('No audio content returned from Gemini API');
+          if (!firstErr) firstErr = err;
+          lastErr = err;
           continue;
         }
 
@@ -236,11 +237,14 @@ export class GeminiTTSEngine {
           pcmBytes: bytes
         };
       } catch (e) {
+        if (!firstErr) firstErr = e;
         lastErr = e;
       }
     }
 
+    if (firstErr) throw firstErr;
     if (lastErr) throw lastErr;
+    return null;
     return null;
   }
 
