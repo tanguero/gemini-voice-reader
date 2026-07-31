@@ -401,8 +401,8 @@ class GeminiVoiceReaderApp {
           return 0;
         });
 
-        const enVoices = sorted.filter(v => v.lang.startsWith('en') || v.lang.startsWith('en-'));
-        const listToDisplay = enVoices.length > 0 ? enVoices : sorted;
+        // Include English, French, and all installed system voices
+        const listToDisplay = sorted;
 
         listToDisplay.forEach(v => {
           const opt = document.createElement('option');
