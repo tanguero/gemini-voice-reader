@@ -237,8 +237,20 @@ export class GeminiTTSEngine {
           let audioBuffer = null;
           if (audioCtx) {
             try {
+              if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+              }
               const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
-              audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
+              audioBuffer = await new Promise((resolve) => {
+                const res = audioCtx.decodeAudioData(
+                  arrayBufferSlice,
+                  (decoded) => resolve(decoded),
+                  () => resolve(null)
+                );
+                if (res && typeof res.then === 'function') {
+                  res.then(resolve).catch(() => resolve(null));
+                }
+              });
             } catch (e) {
               console.error('AudioContext decodeAudioData error:', e);
             }
@@ -258,7 +270,6 @@ export class GeminiTTSEngine {
 
     if (firstErr) throw firstErr;
     if (lastErr) throw lastErr;
-    return null;
     return null;
   }
 
@@ -297,7 +308,8 @@ export class GeminiTTSEngine {
       let audioItem = this.audioCache.get(cacheKey);
 
       if (!audioItem || !audioItem.pcmBytes) {
-        audioItem = await this.fetchGeminiSpeech(sentences[i].text, targetVoice, audioCtx);
+        // Pass null audioCtx during audio file export to avoid decodeAudioData hanging
+        audioItem = await this.fetchGeminiSpeech(sentences[i].text, targetVoice, null);
         if (audioItem && audioItem.pcmBytes) {
           this.audioCache.set(cacheKey, audioItem);
         }

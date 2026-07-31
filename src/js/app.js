@@ -84,26 +84,10 @@ class GeminiVoiceReaderApp {
 
     this.btnSleepTimer = document.getElementById('btn-sleep-timer');
     this.sleepBadge = document.getElementById('sleep-timer-badge');
-    this.btnExportAudio = document.getElementById('btn-export-audio');
-
     // Modals
     this.modalImport = document.getElementById('modal-import');
-    this.modalExport = document.getElementById('modal-export');
     this.modalSettings = document.getElementById('modal-settings');
     this.modalSleep = document.getElementById('modal-sleep');
-
-    this.btnExportWavConfirm = document.getElementById('btn-export-wav-confirm');
-    this.btnExportTxtConfirm = document.getElementById('btn-export-txt-confirm');
-
-    // Export Modal Progress & Key Elements
-    this.exportApiKeyContainer = document.getElementById('export-api-key-container');
-    this.exportApiKeyInput = document.getElementById('export-api-key-input');
-    this.btnSaveExportKey = document.getElementById('btn-save-export-key');
-    this.exportProgressContainer = document.getElementById('export-progress-container');
-    this.exportStatusText = document.getElementById('export-status-text');
-    this.exportPctText = document.getElementById('export-pct-text');
-    this.exportProgressBar = document.getElementById('export-progress-bar');
-    this.exportStatusBanner = document.getElementById('export-status-banner');
 
     // Settings Form Inputs
     this.inputApiKey = document.getElementById('gemini-api-key');
@@ -283,40 +267,7 @@ class GeminiVoiceReaderApp {
       this.jumpToSentence(targetSentence);
     });
 
-    // Export Modal Controls
-    this.btnExportAudio.addEventListener('click', () => {
-      if (!this.currentDoc) {
-        alert('No active document to export.');
-        return;
-      }
-      this.showModal(this.modalExport);
-    });
 
-    if (this.btnExportWavConfirm) {
-      this.btnExportWavConfirm.addEventListener('click', () => {
-        this.handleExportAudio();
-      });
-    }
-
-    if (this.btnSaveExportKey) {
-      this.btnSaveExportKey.addEventListener('click', () => {
-        const val = (this.exportApiKeyInput.value || '').trim();
-        if (val) {
-          this.ttsEngine.setApiKey(val);
-          this.inputApiKey.value = val;
-          this.updateVoiceBadge();
-          this.exportApiKeyContainer.classList.add('hidden');
-          this.handleExportAudio();
-        }
-      });
-    }
-
-    if (this.btnExportTxtConfirm) {
-      this.btnExportTxtConfirm.addEventListener('click', () => {
-        this.hideModal(this.modalExport);
-        this.handleExportText();
-      });
-    }
 
     document.querySelectorAll('.sleep-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -823,125 +774,8 @@ class GeminiVoiceReaderApp {
     }
   }
 
-  handleExportText() {
-    if (!this.currentDoc) {
-      alert('No active document to export.');
-      return;
-    }
-    const title = this.currentDoc.title || 'Document';
-    const textContent = this.currentDoc.paragraphs.map(p => p.text).join('\n\n');
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
-    a.download = `${cleanTitle}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
 
-  async handleExportAudio() {
-    if (!this.currentDoc || !this.currentDoc.sentences || this.currentDoc.sentences.length === 0) {
-      alert('No active document to export.');
-      return;
-    }
 
-    if (!this.ttsEngine.hasApiKey()) {
-      if (this.exportApiKeyContainer) {
-        this.exportApiKeyContainer.classList.remove('hidden');
-        if (this.exportApiKeyInput) {
-          this.exportApiKeyInput.focus();
-        }
-      }
-      return;
-    }
-
-    let voice = this.voiceSelect.value;
-    if (!this.ttsEngine.isGeminiVoice(voice)) {
-      voice = 'Kore';
-    }
-
-    const confirmBtn = this.btnExportWavConfirm;
-    const origConfirmHtml = confirmBtn ? confirmBtn.innerHTML : '';
-    if (confirmBtn) {
-      confirmBtn.disabled = true;
-      confirmBtn.innerHTML = '⏳ Synthesizing AI Audio...';
-    }
-
-    if (this.exportStatusBanner) {
-      this.exportStatusBanner.classList.add('hidden');
-    }
-    if (this.exportProgressContainer) {
-      this.exportProgressContainer.classList.remove('hidden');
-    }
-
-    try {
-      this.player.initAudioContext();
-      const blob = await this.ttsEngine.exportFullDocumentAudio(
-        this.currentDoc.sentences,
-        voice,
-        this.player.audioCtx,
-        (current, total) => {
-          const pct = Math.round((current / total) * 100);
-          if (this.exportStatusText) {
-            this.exportStatusText.textContent = `Synthesizing sentence ${current} of ${total}...`;
-          }
-          if (this.exportPctText) {
-            this.exportPctText.textContent = `${pct}%`;
-          }
-          if (this.exportProgressBar) {
-            this.exportProgressBar.style.width = `${pct}%`;
-          }
-        }
-      );
-
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const cleanTitle = (this.currentDoc.title || 'Document').replace(/[^a-z0-9]/gi, '_');
-        a.download = `${cleanTitle}_${voice}_GeminiVoice.wav`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-        if (this.exportStatusBanner) {
-          this.exportStatusBanner.className = 'export-status-banner';
-          this.exportStatusBanner.style.background = 'rgba(16, 185, 129, 0.15)';
-          this.exportStatusBanner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-          this.exportStatusBanner.style.color = '#34d399';
-          this.exportStatusBanner.innerHTML = `✅ <strong>Audio File Downloaded!</strong> Saved as <code>${cleanTitle}_${voice}_GeminiVoice.wav</code>`;
-          this.exportStatusBanner.classList.remove('hidden');
-        }
-      }
-    } catch (e) {
-      const errMsg = e.message || String(e);
-      if (this.exportStatusBanner) {
-        this.exportStatusBanner.className = 'export-status-banner';
-        this.exportStatusBanner.style.background = 'rgba(239, 68, 68, 0.15)';
-        this.exportStatusBanner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-        this.exportStatusBanner.style.color = '#f87171';
-        this.exportStatusBanner.innerHTML = `❌ <strong>Export Failed:</strong> ${errMsg}`;
-        this.exportStatusBanner.classList.remove('hidden');
-      }
-
-      const isKeyErr = errMsg.includes('MISSING_KEY') || errMsg.includes('Invalid Gemini API Key') || errMsg.includes('API key not valid') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('API_KEY_INVALID');
-      if (isKeyErr && this.exportApiKeyContainer) {
-        this.exportApiKeyContainer.classList.remove('hidden');
-        if (this.exportApiKeyInput) this.exportApiKeyInput.focus();
-      }
-
-      console.error('Audio export failed:', e);
-    } finally {
-      if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = origConfirmHtml;
-      }
-    }
-  }
 
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
