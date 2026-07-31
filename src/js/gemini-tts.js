@@ -141,9 +141,7 @@ export class GeminiTTSEngine {
   async fetchGeminiSpeech(text, voiceName, audioCtx) {
     const modelsToTry = [
       'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-flash'
+      'gemini-2.0-flash-lite'
     ];
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
