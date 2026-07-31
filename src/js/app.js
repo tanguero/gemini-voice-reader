@@ -88,8 +88,12 @@ class GeminiVoiceReaderApp {
 
     // Modals
     this.modalImport = document.getElementById('modal-import');
+    this.modalExport = document.getElementById('modal-export');
     this.modalSettings = document.getElementById('modal-settings');
     this.modalSleep = document.getElementById('modal-sleep');
+
+    this.btnExportWavConfirm = document.getElementById('btn-export-wav-confirm');
+    this.btnExportTxtConfirm = document.getElementById('btn-export-txt-confirm');
 
     // Settings Form Inputs
     this.inputApiKey = document.getElementById('gemini-api-key');
@@ -269,8 +273,28 @@ class GeminiVoiceReaderApp {
       this.jumpToSentence(targetSentence);
     });
 
-    // Sleep Timer Preset Buttons
-    this.btnExportAudio.addEventListener('click', () => this.handleExportAudio());
+    // Export Modal Controls
+    this.btnExportAudio.addEventListener('click', () => {
+      if (!this.currentDoc) {
+        alert('No active document to export.');
+        return;
+      }
+      this.showModal(this.modalExport);
+    });
+
+    if (this.btnExportWavConfirm) {
+      this.btnExportWavConfirm.addEventListener('click', () => {
+        this.hideModal(this.modalExport);
+        this.handleExportAudio();
+      });
+    }
+
+    if (this.btnExportTxtConfirm) {
+      this.btnExportTxtConfirm.addEventListener('click', () => {
+        this.hideModal(this.modalExport);
+        this.handleExportText();
+      });
+    }
 
     document.querySelectorAll('.sleep-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -759,6 +783,25 @@ class GeminiVoiceReaderApp {
     }
   }
 
+  handleExportText() {
+    if (!this.currentDoc) {
+      alert('No active document to export.');
+      return;
+    }
+    const title = this.currentDoc.title || 'Document';
+    const textContent = this.currentDoc.paragraphs.map(p => p.text).join('\n\n');
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
+    a.download = `${cleanTitle}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
   async handleExportAudio() {
     if (!this.currentDoc || !this.currentDoc.sentences || this.currentDoc.sentences.length === 0) {
       alert('No active document to export.');
@@ -766,11 +809,11 @@ class GeminiVoiceReaderApp {
     }
 
     if (!this.ttsEngine.hasApiKey()) {
-      alert('Exporting full document audio into a WAV file requires a free Gemini API Key.\n\nPlease enter your key in the Settings window.');
-      this.inputApiKey.value = this.ttsEngine.apiKey;
-      this.pendingExportOnSave = true;
-      this.showModal(this.modalSettings);
-      setTimeout(() => this.inputApiKey.focus(), 200);
+      if (confirm('Generating downloadable AI Audio (.wav) files requires a free Gemini API Key from Google AI Studio.\n\nWould you like to open Settings to enter your API key?')) {
+        this.inputApiKey.value = this.ttsEngine.apiKey;
+        this.showModal(this.modalSettings);
+        setTimeout(() => this.inputApiKey.focus(), 200);
+      }
       return;
     }
 
@@ -807,21 +850,8 @@ class GeminiVoiceReaderApp {
       }
     } catch (e) {
       const errMsg = e.message || String(e);
-      const isKeyErr = errMsg.includes('MISSING_KEY') || errMsg.includes('Invalid Gemini API Key') || errMsg.includes('API key not valid') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('API_KEY_INVALID');
-
-      if (isKeyErr) {
-        alert('Gemini API Key Required / Invalid:\n\n' + (errMsg === 'MISSING_KEY' ? 'A Gemini API key is required to export audio.' : errMsg) + '\n\nPlease enter a valid API key from Google AI Studio.');
-        this.inputApiKey.value = this.ttsEngine.apiKey;
-        this.pendingExportOnSave = true;
-        this.showModal(this.modalSettings);
-        setTimeout(() => {
-          this.inputApiKey.focus();
-          this.inputApiKey.select();
-        }, 200);
-      } else {
-        alert(`Audio Export Error:\n${errMsg}`);
-        console.error('Audio export failed:', e);
-      }
+      alert(`Audio Export Error:\n\n${errMsg}\n\nTip: You can also export the full document as a text (.txt) file directly from the Export menu without an API key.`);
+      console.error('Audio export failed:', e);
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHtml;
