@@ -95,6 +95,16 @@ class GeminiVoiceReaderApp {
     this.btnExportWavConfirm = document.getElementById('btn-export-wav-confirm');
     this.btnExportTxtConfirm = document.getElementById('btn-export-txt-confirm');
 
+    // Export Modal Progress & Key Elements
+    this.exportApiKeyContainer = document.getElementById('export-api-key-container');
+    this.exportApiKeyInput = document.getElementById('export-api-key-input');
+    this.btnSaveExportKey = document.getElementById('btn-save-export-key');
+    this.exportProgressContainer = document.getElementById('export-progress-container');
+    this.exportStatusText = document.getElementById('export-status-text');
+    this.exportPctText = document.getElementById('export-pct-text');
+    this.exportProgressBar = document.getElementById('export-progress-bar');
+    this.exportStatusBanner = document.getElementById('export-status-banner');
+
     // Settings Form Inputs
     this.inputApiKey = document.getElementById('gemini-api-key');
     this.selectStylePrompt = document.getElementById('voice-style-prompt');
@@ -284,8 +294,20 @@ class GeminiVoiceReaderApp {
 
     if (this.btnExportWavConfirm) {
       this.btnExportWavConfirm.addEventListener('click', () => {
-        this.hideModal(this.modalExport);
         this.handleExportAudio();
+      });
+    }
+
+    if (this.btnSaveExportKey) {
+      this.btnSaveExportKey.addEventListener('click', () => {
+        const val = (this.exportApiKeyInput.value || '').trim();
+        if (val) {
+          this.ttsEngine.setApiKey(val);
+          this.inputApiKey.value = val;
+          this.updateVoiceBadge();
+          this.exportApiKeyContainer.classList.add('hidden');
+          this.handleExportAudio();
+        }
       });
     }
 
@@ -456,6 +478,24 @@ class GeminiVoiceReaderApp {
   }
 
   showModal(modal) {
+    if (modal === this.modalExport) {
+      if (this.exportStatusBanner) {
+        this.exportStatusBanner.classList.add('hidden');
+      }
+      if (this.exportProgressContainer) {
+        this.exportProgressContainer.classList.add('hidden');
+      }
+      if (!this.ttsEngine.hasApiKey()) {
+        if (this.exportApiKeyContainer) {
+          this.exportApiKeyContainer.classList.remove('hidden');
+          this.exportApiKeyInput.value = this.ttsEngine.apiKey || '';
+        }
+      } else {
+        if (this.exportApiKeyContainer) {
+          this.exportApiKeyContainer.classList.add('hidden');
+        }
+      }
+    }
     modal.classList.remove('hidden');
   }
 
@@ -809,10 +849,11 @@ class GeminiVoiceReaderApp {
     }
 
     if (!this.ttsEngine.hasApiKey()) {
-      if (confirm('Generating downloadable AI Audio (.wav) files requires a free Gemini API Key from Google AI Studio.\n\nWould you like to open Settings to enter your API key?')) {
-        this.inputApiKey.value = this.ttsEngine.apiKey;
-        this.showModal(this.modalSettings);
-        setTimeout(() => this.inputApiKey.focus(), 200);
+      if (this.exportApiKeyContainer) {
+        this.exportApiKeyContainer.classList.remove('hidden');
+        if (this.exportApiKeyInput) {
+          this.exportApiKeyInput.focus();
+        }
       }
       return;
     }
@@ -822,9 +863,19 @@ class GeminiVoiceReaderApp {
       voice = 'Kore';
     }
 
-    const btn = this.btnExportAudio;
-    const origHtml = btn.innerHTML;
-    btn.disabled = true;
+    const confirmBtn = this.btnExportWavConfirm;
+    const origConfirmHtml = confirmBtn ? confirmBtn.innerHTML : '';
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '⏳ Synthesizing AI Audio...';
+    }
+
+    if (this.exportStatusBanner) {
+      this.exportStatusBanner.classList.add('hidden');
+    }
+    if (this.exportProgressContainer) {
+      this.exportProgressContainer.classList.remove('hidden');
+    }
 
     try {
       this.player.initAudioContext();
@@ -833,7 +884,16 @@ class GeminiVoiceReaderApp {
         voice,
         this.player.audioCtx,
         (current, total) => {
-          btn.innerHTML = `<span style="font-size:0.7rem; font-weight:bold;">${current}/${total}</span>`;
+          const pct = Math.round((current / total) * 100);
+          if (this.exportStatusText) {
+            this.exportStatusText.textContent = `Synthesizing sentence ${current} of ${total}...`;
+          }
+          if (this.exportPctText) {
+            this.exportPctText.textContent = `${pct}%`;
+          }
+          if (this.exportProgressBar) {
+            this.exportProgressBar.style.width = `${pct}%`;
+          }
         }
       );
 
@@ -847,14 +907,39 @@ class GeminiVoiceReaderApp {
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+        if (this.exportStatusBanner) {
+          this.exportStatusBanner.className = 'export-status-banner';
+          this.exportStatusBanner.style.background = 'rgba(16, 185, 129, 0.15)';
+          this.exportStatusBanner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          this.exportStatusBanner.style.color = '#34d399';
+          this.exportStatusBanner.innerHTML = `✅ <strong>Audio File Downloaded!</strong> Saved as <code>${cleanTitle}_${voice}_GeminiVoice.wav</code>`;
+          this.exportStatusBanner.classList.remove('hidden');
+        }
       }
     } catch (e) {
       const errMsg = e.message || String(e);
-      alert(`Audio Export Error:\n\n${errMsg}\n\nTip: You can also export the full document as a text (.txt) file directly from the Export menu without an API key.`);
+      if (this.exportStatusBanner) {
+        this.exportStatusBanner.className = 'export-status-banner';
+        this.exportStatusBanner.style.background = 'rgba(239, 68, 68, 0.15)';
+        this.exportStatusBanner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        this.exportStatusBanner.style.color = '#f87171';
+        this.exportStatusBanner.innerHTML = `❌ <strong>Export Failed:</strong> ${errMsg}`;
+        this.exportStatusBanner.classList.remove('hidden');
+      }
+
+      const isKeyErr = errMsg.includes('MISSING_KEY') || errMsg.includes('Invalid Gemini API Key') || errMsg.includes('API key not valid') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('API_KEY_INVALID');
+      if (isKeyErr && this.exportApiKeyContainer) {
+        this.exportApiKeyContainer.classList.remove('hidden');
+        if (this.exportApiKeyInput) this.exportApiKeyInput.focus();
+      }
+
       console.error('Audio export failed:', e);
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = origHtml;
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = origConfirmHtml;
+      }
     }
   }
 
