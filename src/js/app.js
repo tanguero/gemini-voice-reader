@@ -301,22 +301,8 @@ class GeminiVoiceReaderApp {
       });
     });
 
-    // File Upload & Selection (iOS WebKit & Mobile Friendly)
-    if (this.btnBrowseFile) {
-      this.btnBrowseFile.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.fileInput.click();
-      });
-    }
-
+    // File Drag & Drop & Direct Native Touch Selection
     if (this.dropZone) {
-      this.dropZone.addEventListener('click', (e) => {
-        if (e.target !== this.fileInput && e.target !== this.btnBrowseFile) {
-          this.fileInput.click();
-        }
-      });
-
       this.dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         this.dropZone.classList.add('drag-over');
@@ -331,13 +317,15 @@ class GeminiVoiceReaderApp {
       });
     }
 
-    this.fileInput.addEventListener('change', async (e) => {
-      if (e.target.files && e.target.files.length > 0) {
-        const file = e.target.files[0];
-        this.fileInput.value = '';
-        await this.handleFileImport(file);
-      }
-    });
+    if (this.fileInput) {
+      this.fileInput.addEventListener('change', async (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          const file = e.target.files[0];
+          await this.handleFileImport(file);
+          this.fileInput.value = '';
+        }
+      });
+    }
 
     this.btnSubmitImport.addEventListener('click', () => {
       const text = this.pasteInput.value;
