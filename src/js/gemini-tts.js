@@ -135,33 +135,44 @@ export class GeminiTTSEngine {
   /**
    * Calls Gemini 2.0 Flash Audio REST API
    */
+  /**
+   * Calls Gemini REST API for Speech Synthesis
+   */
   async fetchGeminiSpeech(text, voiceName, audioCtx) {
     const modelsToTry = [
-      'gemini-2.0-flash-exp'
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash'
     ];
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
     const promptText = this.stylePrompt ? `${this.stylePrompt}\n\n${text}` : text;
 
-    const requestPayload = {
-      contents: [
-        {
-          parts: [
-            { text: promptText }
-          ]
+    const payloadVariations = [
+      {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: formattedVoiceName }
+            }
+          }
         }
-      ],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: formattedVoiceName
+      },
+      {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+          responseModalities: ["TEXT", "AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: formattedVoiceName }
             }
           }
         }
       }
-    };
+    ];
 
     let firstErr = null;
     let lastErr = null;
@@ -169,76 +180,81 @@ export class GeminiTTSEngine {
     for (const model of modelsToTry) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`;
       
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': this.apiKey
-          },
-          body: JSON.stringify(requestPayload)
-        });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          const isKeyError = res.status === 401 || res.status === 403 || errText.includes('API_KEY_INVALID') || errText.includes('API key not valid');
-          if (isKeyError) {
-            throw new Error('Invalid Gemini API Key. Please verify your API Key from Google AI Studio (aistudio.google.com).');
-          }
-          const err = new Error(`Gemini API Error (${res.status}): ${errText}`);
-          if (!firstErr) firstErr = err;
-          lastErr = err;
-          continue;
-        }
-
-        const data = await res.json();
-        const candidate = data.candidates?.[0];
-        const part = candidate?.content?.parts?.[0];
-
-        if (!part || !part.inlineData) {
-          const err = new Error('No audio content returned from Gemini API');
-          if (!firstErr) firstErr = err;
-          lastErr = err;
-          continue;
-        }
-
-        const base64Data = part.inlineData.data;
-
-        const binaryString = atob(base64Data);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        const mimeType = (part.inlineData.mimeType || '').toLowerCase();
-        let finalWavBytes = bytes;
-
-        // Gemini 2.0 Flash returns raw 24kHz PCM (audio/pcm or audio/raw).
-        // Wrap with a 44-byte WAV header if it doesn't already start with 'RIFF'
-        const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
-        if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
-          finalWavBytes = pcmToWav(bytes, 24000);
-        }
-
-        const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
-        const blobUrl = URL.createObjectURL(blob);
-        let audioBuffer = null;
+      for (const requestPayload of payloadVariations) {
         try {
-          const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
-          audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
-        } catch (e) {
-          console.error('AudioContext decodeAudioData error:', e);
-        }
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': this.apiKey
+            },
+            body: JSON.stringify(requestPayload)
+          });
 
-        return {
-          blobUrl: blobUrl,
-          audioBuffer: audioBuffer,
-          pcmBytes: bytes
-        };
-      } catch (e) {
-        if (!firstErr) firstErr = e;
-        lastErr = e;
+          if (!res.ok) {
+            const errText = await res.text();
+            const isKeyError = res.status === 401 || res.status === 403 || errText.includes('API_KEY_INVALID') || errText.includes('API key not valid');
+            if (isKeyError) {
+              throw new Error('Invalid Gemini API Key. Please verify your API Key from Google AI Studio (aistudio.google.com).');
+            }
+            const err = new Error(`Gemini API Error (${res.status}): ${errText}`);
+            if (!firstErr) firstErr = err;
+            lastErr = err;
+            continue;
+          }
+
+          const data = await res.json();
+          const candidate = data.candidates?.[0];
+          const parts = candidate?.content?.parts || [];
+          
+          // Search for part containing inlineData (audio bytes)
+          const audioPart = parts.find(p => p.inlineData && p.inlineData.data);
+
+          if (!audioPart) {
+            const err = new Error('No audio content returned from Gemini API');
+            if (!firstErr) firstErr = err;
+            lastErr = err;
+            continue;
+          }
+
+          const base64Data = audioPart.inlineData.data;
+
+          const binaryString = atob(base64Data);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          const mimeType = (audioPart.inlineData.mimeType || '').toLowerCase();
+          let finalWavBytes = bytes;
+
+          const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
+          if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
+            finalWavBytes = pcmToWav(bytes, 24000);
+          }
+
+          const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
+          const blobUrl = URL.createObjectURL(blob);
+          let audioBuffer = null;
+          if (audioCtx) {
+            try {
+              const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
+              audioBuffer = await audioCtx.decodeAudioData(arrayBufferSlice);
+            } catch (e) {
+              console.error('AudioContext decodeAudioData error:', e);
+            }
+          }
+
+          return {
+            blobUrl: blobUrl,
+            audioBuffer: audioBuffer,
+            pcmBytes: bytes
+          };
+        } catch (e) {
+          if (!firstErr) firstErr = e;
+          lastErr = e;
+        }
       }
     }
 
