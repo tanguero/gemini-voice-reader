@@ -100,6 +100,7 @@ class GeminiVoiceReaderApp {
 
     // Import Tabs & Inputs
     this.dropZone = document.getElementById('drop-zone');
+    this.btnBrowseFile = document.getElementById('btn-browse-file');
     this.fileInput = document.getElementById('file-input');
     this.docTitleInput = document.getElementById('doc-title-input');
     this.pasteInput = document.getElementById('paste-input');
@@ -300,23 +301,41 @@ class GeminiVoiceReaderApp {
       });
     });
 
-    // File Drag & Drop
-    this.dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      this.dropZone.classList.add('drag-over');
-    });
-    this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('drag-over'));
-    this.dropZone.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      this.dropZone.classList.remove('drag-over');
-      if (e.dataTransfer.files.length > 0) {
-        await this.handleFileImport(e.dataTransfer.files[0]);
-      }
-    });
+    // File Upload & Selection (iOS WebKit & Mobile Friendly)
+    if (this.btnBrowseFile) {
+      this.btnBrowseFile.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.fileInput.click();
+      });
+    }
+
+    if (this.dropZone) {
+      this.dropZone.addEventListener('click', (e) => {
+        if (e.target !== this.fileInput && e.target !== this.btnBrowseFile) {
+          this.fileInput.click();
+        }
+      });
+
+      this.dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.dropZone.classList.add('drag-over');
+      });
+      this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('drag-over'));
+      this.dropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        this.dropZone.classList.remove('drag-over');
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          await this.handleFileImport(e.dataTransfer.files[0]);
+        }
+      });
+    }
 
     this.fileInput.addEventListener('change', async (e) => {
-      if (e.target.files.length > 0) {
-        await this.handleFileImport(e.target.files[0]);
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        this.fileInput.value = '';
+        await this.handleFileImport(file);
       }
     });
 
