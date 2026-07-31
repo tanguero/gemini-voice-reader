@@ -806,14 +806,20 @@ class GeminiVoiceReaderApp {
         setTimeout(() => URL.revokeObjectURL(url), 10000);
       }
     } catch (e) {
-      if (e.message === 'MISSING_KEY') {
-        alert('Exporting audio requires a valid Gemini API Key. Please save your key in Settings.');
+      const errMsg = e.message || String(e);
+      const isKeyErr = errMsg.includes('MISSING_KEY') || errMsg.includes('Invalid Gemini API Key') || errMsg.includes('API key not valid') || errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('API_KEY_INVALID');
+
+      if (isKeyErr) {
+        alert('Gemini API Key Required / Invalid:\n\n' + (errMsg === 'MISSING_KEY' ? 'A Gemini API key is required to export audio.' : errMsg) + '\n\nPlease enter a valid API key from Google AI Studio.');
         this.inputApiKey.value = this.ttsEngine.apiKey;
         this.pendingExportOnSave = true;
         this.showModal(this.modalSettings);
-        setTimeout(() => this.inputApiKey.focus(), 200);
+        setTimeout(() => {
+          this.inputApiKey.focus();
+          this.inputApiKey.select();
+        }, 200);
       } else {
-        alert(`Audio Export Error:\n${e.message || e}`);
+        alert(`Audio Export Error:\n${errMsg}`);
         console.error('Audio export failed:', e);
       }
     } finally {
