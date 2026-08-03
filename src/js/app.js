@@ -390,10 +390,16 @@ class GeminiVoiceReaderApp {
 
   populateLocalVoices() {
     if ('speechSynthesis' in window) {
+      let localVoicesPopulated = false;
+
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         const group = document.getElementById('local-voices-group');
         if (!group || voices.length === 0) return;
+
+        // Only rebuild local voices once to avoid resetting the select on mobile
+        if (localVoicesPopulated) return;
+        localVoicesPopulated = true;
 
         const previousSelection = this.voiceSelect ? this.voiceSelect.value : null;
 
@@ -432,6 +438,7 @@ class GeminiVoiceReaderApp {
           group.appendChild(opt);
         });
 
+        // Restore voice selection after populating local voices
         const targetVoice = localStorage.getItem('selected_voice') || previousSelection;
         if (targetVoice && this.voiceSelect) {
           const optionExists = Array.from(this.voiceSelect.options).some(opt => opt.value === targetVoice);
@@ -446,14 +453,8 @@ class GeminiVoiceReaderApp {
       loadVoices();
       window.speechSynthesis.onvoiceschanged = loadVoices;
 
-      // Mobile Safari / Chrome retries since getVoices() can be async/delayed on mobile OS
-      [100, 300, 800, 1500, 3000].forEach(delay => setTimeout(loadVoices, delay));
-
-      // Trigger voice load on user interaction if voices haven't populated yet
-      if (this.voiceSelect) {
-        this.voiceSelect.addEventListener('focus', loadVoices, { passive: true });
-        this.voiceSelect.addEventListener('touchstart', loadVoices, { passive: true });
-      }
+      // Staggered retries for mobile browsers where getVoices() is async
+      [150, 500, 1500, 3000].forEach(delay => setTimeout(loadVoices, delay));
     }
   }
 
@@ -809,7 +810,7 @@ class GeminiVoiceReaderApp {
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=45').then(reg => {
+        navigator.serviceWorker.register('./sw.js?v=46').then(reg => {
           reg.update();
         }).catch(err => {
           console.warn('SW registration failed:', err);
