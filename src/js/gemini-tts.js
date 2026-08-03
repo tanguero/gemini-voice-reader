@@ -383,8 +383,9 @@ export class GeminiTTSEngine {
     const isGeminiVoice = GEMINI_VOICES.map(v => v.toLowerCase()).includes(cleanTargetName);
 
     if (!match && isGeminiVoice) {
-      const maleKeywords = ['male', 'david', 'mark', 'richard', 'guy', 'george', 'daniel', 'aaron', 'arthur', 'fred', 'gordon', 'oliver', 'tom', 'thomas', 'alex', 'evan', 'nathan', 'malcolm', 'james', 'john', 'steven', 'michael', 'paul', 'brian', 'christopher', 'diego', 'jorge', 'luca', 'rishi', 'vikram', 'nicolas'];
-      const femaleKeywords = ['female', 'zira', 'linda', 'jenny', 'aria', 'samantha', 'karen', 'moira', 'tessa', 'victoria', 'veena', 'fiona', 'kate', 'serena', 'audrey', 'allison', 'ava', 'susan', 'emma', 'stephanie', 'catherine', 'sarah', 'rachel', 'laura', 'nicky', 'marie', 'amélie', 'amelie', 'chantal', 'aurelie', 'aurélie'];
+      // Voice name keywords for gender detection (US/GB/CA English voices only)
+      const maleKeywords = ['male', 'david', 'mark', 'richard', 'guy', 'george', 'daniel', 'aaron', 'arthur', 'fred', 'oliver', 'tom', 'thomas', 'alex', 'evan', 'nathan', 'james', 'john', 'steven', 'michael', 'paul', 'brian', 'christopher', 'nicolas'];
+      const femaleKeywords = ['female', 'zira', 'linda', 'jenny', 'aria', 'samantha', 'karen', 'moira', 'tessa', 'victoria', 'fiona', 'kate', 'serena', 'audrey', 'allison', 'ava', 'susan', 'emma', 'stephanie', 'catherine', 'sarah', 'rachel', 'laura', 'nicky', 'marie', 'amélie', 'amelie', 'chantal'];
 
       const isMale = (v) => {
         const name = v.name.toLowerCase();
@@ -395,8 +396,14 @@ export class GeminiTTSEngine {
         return femaleKeywords.some(kw => name.includes(kw));
       };
 
-      const engOrFrVoices = voices.filter(v => v.lang && (v.lang.toLowerCase().startsWith('en') || v.lang.toLowerCase().startsWith('fr')));
-      const activePool = engOrFrVoices.length > 0 ? engOrFrVoices : voices;
+      // For Gemini voice fallback, restrict to US/GB/CA English and French only (no Indian, Australian, South African accents)
+      const coreEnglish = voices.filter(v => {
+        if (!v.lang) return false;
+        const lang = v.lang.toLowerCase().replace('_', '-');
+        return lang === 'en-us' || lang === 'en-gb' || lang === 'en-ca' || lang.startsWith('fr');
+      });
+      const anyEnglish = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      const activePool = coreEnglish.length > 0 ? coreEnglish : (anyEnglish.length > 0 ? anyEnglish : voices);
 
       const malePool = activePool.filter(isMale);
       const femalePool = activePool.filter(isFemale);
@@ -413,7 +420,7 @@ export class GeminiTTSEngine {
       } else if (cleanTargetName === 'fenrir') {
         match = googleUkMale || malePool[1] || malePool[0] || (activePool.length > 1 ? activePool[1] : activePool[0]);
       } else if (cleanTargetName === 'puck') {
-        match = googleUsMale || googleUkMale || malePool[2] || malePool[0] || (activePool.length > 2 ? activePool[2] : activePool[0]);
+        match = googleUsMale || googleUkMale || malePool[0] || (activePool.length > 2 ? activePool[2] : activePool[0]);
       } else if (cleanTargetName === 'kore') {
         match = googleUkFemale || femalePool[0] || (activePool.length > 3 ? activePool[3] : activePool[0]);
       } else if (cleanTargetName === 'aoede') {
