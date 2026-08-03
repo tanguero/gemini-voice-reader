@@ -22,7 +22,7 @@ export class DocumentParser {
 
     let globalSentenceIndex = 0;
     const paragraphs = rawParagraphs.map((paraText, pIdx) => {
-      const cleanPara = paraText.trim();
+      const cleanPara = DocumentParser.stripMarkdown(paraText.trim());
       
       // Regex sentence splitter preserving punctuation
       // Handles abbreviations like Mr., Dr., etc. reasonably well
@@ -95,5 +95,57 @@ export class DocumentParser {
     // Fallback text reading for other formats
     const text = await file.text();
     return { text, title };
+  }
+
+  /**
+   * Strip markdown syntax characters so TTS reads clean prose
+   * Removes: headings (#), bold/italic (* _ ~), links, images, code fences,
+   * blockquotes (>), list markers (- * + numbered), horizontal rules, HTML tags
+   * @param {string} text
+   * @returns {string} Cleaned text
+   */
+  static stripMarkdown(text) {
+    if (!text) return text;
+
+    let cleaned = text;
+
+    // Remove code fences (``` ... ```) and inline code (` ... `)
+    cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+    cleaned = cleaned.replace(/`([^`]*)`/g, '$1');
+
+    // Remove images ![alt](url)
+    cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+
+    // Convert links [text](url) to just the text
+    cleaned = cleaned.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+
+    // Remove heading markers (# ## ### etc.) at start of lines
+    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
+
+    // Remove blockquote markers (> ) at start of lines
+    cleaned = cleaned.replace(/^>\s*/gm, '');
+
+    // Remove unordered list markers (- * +) at start of lines
+    cleaned = cleaned.replace(/^[\s]*[-*+]\s+/gm, '');
+
+    // Remove ordered list markers (1. 2. etc.) at start of lines
+    cleaned = cleaned.replace(/^[\s]*\d+\.\s+/gm, '');
+
+    // Remove horizontal rules (---, ***, ___)
+    cleaned = cleaned.replace(/^[-*_]{3,}\s*$/gm, '');
+
+    // Remove bold/italic markers (*** ** * ___ __ _ ~~)
+    cleaned = cleaned.replace(/(\*{1,3}|_{1,3}|~~)(.*?)\1/g, '$2');
+
+    // Remove any remaining standalone * or _ markers
+    cleaned = cleaned.replace(/(?<!\w)[*_]{1,3}(?!\w)/g, '');
+
+    // Remove HTML tags
+    cleaned = cleaned.replace(/<[^>]*>/g, '');
+
+    // Collapse multiple spaces and trim
+    cleaned = cleaned.replace(/  +/g, ' ').trim();
+
+    return cleaned;
   }
 }
