@@ -366,35 +366,42 @@ export class GeminiTTSEngine {
     const isGeminiVoice = GEMINI_VOICES.map(v => v.toLowerCase()).includes(cleanTargetName);
 
     if (!match && isGeminiVoice) {
+      const maleKeywords = ['male', 'david', 'mark', 'richard', 'guy', 'george', 'daniel', 'aaron', 'arthur', 'fred', 'gordon', 'oliver', 'tom', 'thomas', 'alex', 'evan', 'nathan', 'malcolm', 'james', 'john', 'steven', 'michael', 'paul', 'brian', 'christopher', 'diego', 'jorge', 'luca', 'rishi', 'vikram'];
+      const femaleKeywords = ['female', 'zira', 'linda', 'jenny', 'aria', 'samantha', 'karen', 'moira', 'tessa', 'victoria', 'veena', 'fiona', 'kate', 'serena', 'audrey', 'allison', 'ava', 'susan', 'emma', 'stephanie', 'catherine', 'sarah', 'rachel', 'laura', 'nicky'];
+
       const isMale = (v) => {
         const name = v.name.toLowerCase();
-        return (name.includes('male') && !name.includes('female')) || name.includes('david') || name.includes('mark') || name.includes('richard') || name.includes('guy') || name.includes('george');
+        return maleKeywords.some(kw => name.includes(kw)) && !name.includes('female');
       };
       const isFemale = (v) => {
         const name = v.name.toLowerCase();
-        return name.includes('female') || name.includes('zira') || name.includes('linda') || name.includes('jenny') || name.includes('aria');
+        return femaleKeywords.some(kw => name.includes(kw));
       };
 
       const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
       const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
       const activePool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
 
+      const malePool = activePool.filter(isMale);
+      const femalePool = activePool.filter(isFemale);
+
       const googleUkMale = voices.find(v => (v.name.toLowerCase().includes('uk english male') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && isMale(v))) && !v.name.toLowerCase().includes('female'));
       const googleUsMale = voices.find(v => (v.name.toLowerCase().includes('us english') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('us') && isMale(v))) && !v.name.toLowerCase().includes('female'));
       const googleUkFemale = voices.find(v => v.name.toLowerCase().includes('uk english female') || (v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('uk') && isFemale(v)));
 
-      if (cleanTargetName === 'charon' || cleanTargetName === 'fenrir') {
-        match = googleUkMale || activePool.find(isMale) || activePool[0];
-        utterance.pitch = cleanTargetName === 'charon' ? 0.88 : 1.0;
-        utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.rate = 1.0;
+
+      if (cleanTargetName === 'charon') {
+        match = googleUkMale || malePool[0] || activePool[0];
+      } else if (cleanTargetName === 'fenrir') {
+        match = googleUkMale || malePool[1] || malePool[0] || activePool[Math.min(1, activePool.length - 1)];
       } else if (cleanTargetName === 'puck') {
-        match = googleUsMale || googleUkMale || activePool[0];
-        utterance.pitch = 1.10;
-        utterance.rate = 1.05;
-      } else if (cleanTargetName === 'kore' || cleanTargetName === 'aoede') {
-        match = googleUkFemale || activePool.find(isFemale) || activePool[0];
-        utterance.pitch = cleanTargetName === 'kore' ? 1.0 : 1.12;
-        utterance.rate = 1.0;
+        match = googleUsMale || googleUkMale || malePool[2] || malePool[0] || activePool[Math.min(2, activePool.length - 1)];
+      } else if (cleanTargetName === 'kore') {
+        match = googleUkFemale || femalePool[0] || activePool[Math.min(3, activePool.length - 1)];
+      } else if (cleanTargetName === 'aoede') {
+        match = googleUkFemale || femalePool[1] || femalePool[0] || activePool[Math.min(4, activePool.length - 1)];
       }
     } else if (!match) {
       const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));

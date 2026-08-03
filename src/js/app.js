@@ -399,23 +399,36 @@ class GeminiVoiceReaderApp {
 
         group.innerHTML = '';
         
-        // Sort Neural / Natural / Online high quality voices to the top
-        const sorted = [...voices].sort((a, b) => {
-          const aNeural = a.name.includes('Neural') || a.name.includes('Natural') || a.name.includes('Online');
-          const bNeural = b.name.includes('Neural') || b.name.includes('Natural') || b.name.includes('Online');
-          if (aNeural && !bNeural) return -1;
-          if (!aNeural && bNeural) return 1;
-          return 0;
+        // Strictly filter to English (en) and French (fr) voices only
+        const engOrFr = voices.filter(v => {
+          const lang = (v.lang || '').toLowerCase().replace('_', '-');
+          return lang.startsWith('en') || lang.startsWith('fr');
         });
 
-        // Include English, French, and all installed system voices
-        const listToDisplay = sorted;
+        // Filter out low-quality "(Compact)" legacy voices if higher quality version exists
+        const filtered = engOrFr.filter(v => {
+          if (v.name.includes('(Compact)')) {
+            const baseName = v.name.replace(' (Compact)', '').trim();
+            const hasHigherQuality = engOrFr.some(other => (other.name.includes('Enhanced') || other.name.includes('Premium') || other.name.includes('Natural') || other.name === baseName) && other.name !== v.name);
+            return !hasHigherQuality;
+          }
+          return true;
+        });
 
-        listToDisplay.forEach(v => {
+        // Sort Neural / Natural / Online / Premium / Enhanced high quality voices to the top
+        const sorted = [...filtered].sort((a, b) => {
+          const aQuality = a.name.includes('Neural') || a.name.includes('Natural') || a.name.includes('Online') || a.name.includes('Enhanced') || a.name.includes('Premium');
+          const bQuality = b.name.includes('Neural') || b.name.includes('Natural') || b.name.includes('Online') || b.name.includes('Enhanced') || b.name.includes('Premium');
+          if (aQuality && !bQuality) return -1;
+          if (!aQuality && bQuality) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        sorted.forEach(v => {
           const opt = document.createElement('option');
           opt.value = v.name;
-          const isNeural = v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online');
-          opt.textContent = `${isNeural ? '✨ HD ' : ''}${v.name} (${v.lang})`;
+          const isQuality = v.name.includes('Neural') || v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Enhanced') || v.name.includes('Premium');
+          opt.textContent = `${isQuality ? '✨ HD ' : ''}${v.name} (${v.lang})`;
           group.appendChild(opt);
         });
 
@@ -432,6 +445,15 @@ class GeminiVoiceReaderApp {
 
       loadVoices();
       window.speechSynthesis.onvoiceschanged = loadVoices;
+
+      // Mobile Safari / Chrome retries since getVoices() can be async/delayed on mobile OS
+      [100, 300, 800, 1500, 3000].forEach(delay => setTimeout(loadVoices, delay));
+
+      // Trigger voice load on user interaction if voices haven't populated yet
+      if (this.voiceSelect) {
+        this.voiceSelect.addEventListener('focus', loadVoices, { passive: true });
+        this.voiceSelect.addEventListener('touchstart', loadVoices, { passive: true });
+      }
     }
   }
 
@@ -787,7 +809,7 @@ class GeminiVoiceReaderApp {
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=41').then(reg => {
+        navigator.serviceWorker.register('./sw.js?v=44').then(reg => {
           reg.update();
         }).catch(err => {
           console.warn('SW registration failed:', err);
