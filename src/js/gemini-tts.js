@@ -225,14 +225,31 @@ export class GeminiTTSEngine {
           }
 
           const mimeType = (audioPart.inlineData.mimeType || '').toLowerCase();
-          let finalWavBytes = bytes;
-
           const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
-          if (!isRiff || mimeType.includes('pcm') || mimeType.includes('raw')) {
-            finalWavBytes = pcmToWav(bytes, 24000);
+          const isMp3 = (bytes.length > 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) ||
+                        (bytes.length > 2 && bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) ||
+                        mimeType.includes('mp3') || mimeType.includes('mpeg');
+          const isOgg = bytes.length > 4 && bytes[0] === 0x4F && bytes[1] === 0x47 && bytes[2] === 0x47;
+
+          let blobType = 'audio/wav';
+          let finalBytes = bytes;
+
+          if (isRiff) {
+            blobType = 'audio/wav';
+            finalBytes = bytes;
+          } else if (isMp3) {
+            blobType = 'audio/mp3';
+            finalBytes = bytes;
+          } else if (isOgg) {
+            blobType = 'audio/ogg';
+            finalBytes = bytes;
+          } else {
+            // Raw PCM 16-bit 24kHz mono audio from Gemini
+            blobType = 'audio/wav';
+            finalBytes = pcmToWav(bytes, 24000);
           }
 
-          const blob = new Blob([finalWavBytes], { type: 'audio/wav' });
+          const blob = new Blob([finalBytes], { type: blobType });
           const blobUrl = URL.createObjectURL(blob);
           let audioBuffer = null;
           if (audioCtx) {
@@ -240,7 +257,7 @@ export class GeminiTTSEngine {
               if (audioCtx.state === 'suspended') {
                 audioCtx.resume().catch(() => {});
               }
-              const arrayBufferSlice = finalWavBytes.buffer.slice(finalWavBytes.byteOffset, finalWavBytes.byteOffset + finalWavBytes.byteLength);
+              const arrayBufferSlice = finalBytes.buffer.slice(finalBytes.byteOffset, finalBytes.byteOffset + finalBytes.byteLength);
               audioBuffer = await new Promise((resolve) => {
                 const res = audioCtx.decodeAudioData(
                   arrayBufferSlice,
@@ -366,8 +383,8 @@ export class GeminiTTSEngine {
     const isGeminiVoice = GEMINI_VOICES.map(v => v.toLowerCase()).includes(cleanTargetName);
 
     if (!match && isGeminiVoice) {
-      const maleKeywords = ['male', 'david', 'mark', 'richard', 'guy', 'george', 'daniel', 'aaron', 'arthur', 'fred', 'gordon', 'oliver', 'tom', 'thomas', 'alex', 'evan', 'nathan', 'malcolm', 'james', 'john', 'steven', 'michael', 'paul', 'brian', 'christopher', 'diego', 'jorge', 'luca', 'rishi', 'vikram'];
-      const femaleKeywords = ['female', 'zira', 'linda', 'jenny', 'aria', 'samantha', 'karen', 'moira', 'tessa', 'victoria', 'veena', 'fiona', 'kate', 'serena', 'audrey', 'allison', 'ava', 'susan', 'emma', 'stephanie', 'catherine', 'sarah', 'rachel', 'laura', 'nicky'];
+      const maleKeywords = ['male', 'david', 'mark', 'richard', 'guy', 'george', 'daniel', 'aaron', 'arthur', 'fred', 'gordon', 'oliver', 'tom', 'thomas', 'alex', 'evan', 'nathan', 'malcolm', 'james', 'john', 'steven', 'michael', 'paul', 'brian', 'christopher', 'diego', 'jorge', 'luca', 'rishi', 'vikram', 'nicolas'];
+      const femaleKeywords = ['female', 'zira', 'linda', 'jenny', 'aria', 'samantha', 'karen', 'moira', 'tessa', 'victoria', 'veena', 'fiona', 'kate', 'serena', 'audrey', 'allison', 'ava', 'susan', 'emma', 'stephanie', 'catherine', 'sarah', 'rachel', 'laura', 'nicky', 'marie', 'amélie', 'amelie', 'chantal', 'aurelie', 'aurélie'];
 
       const isMale = (v) => {
         const name = v.name.toLowerCase();
@@ -378,9 +395,8 @@ export class GeminiTTSEngine {
         return femaleKeywords.some(kw => name.includes(kw));
       };
 
-      const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
-      const englishVoices = voices.filter(v => v.lang && v.lang.startsWith('en'));
-      const activePool = usVoices.length > 0 ? usVoices : (englishVoices.length > 0 ? englishVoices : voices);
+      const engOrFrVoices = voices.filter(v => v.lang && (v.lang.toLowerCase().startsWith('en') || v.lang.toLowerCase().startsWith('fr')));
+      const activePool = engOrFrVoices.length > 0 ? engOrFrVoices : voices;
 
       const malePool = activePool.filter(isMale);
       const femalePool = activePool.filter(isFemale);
@@ -395,13 +411,13 @@ export class GeminiTTSEngine {
       if (cleanTargetName === 'charon') {
         match = googleUkMale || malePool[0] || activePool[0];
       } else if (cleanTargetName === 'fenrir') {
-        match = googleUkMale || malePool[1] || malePool[0] || activePool[Math.min(1, activePool.length - 1)];
+        match = googleUkMale || malePool[1] || malePool[0] || (activePool.length > 1 ? activePool[1] : activePool[0]);
       } else if (cleanTargetName === 'puck') {
-        match = googleUsMale || googleUkMale || malePool[2] || malePool[0] || activePool[Math.min(2, activePool.length - 1)];
+        match = googleUsMale || googleUkMale || malePool[2] || malePool[0] || (activePool.length > 2 ? activePool[2] : activePool[0]);
       } else if (cleanTargetName === 'kore') {
-        match = googleUkFemale || femalePool[0] || activePool[Math.min(3, activePool.length - 1)];
+        match = googleUkFemale || femalePool[0] || (activePool.length > 3 ? activePool[3] : activePool[0]);
       } else if (cleanTargetName === 'aoede') {
-        match = googleUkFemale || femalePool[1] || femalePool[0] || activePool[Math.min(4, activePool.length - 1)];
+        match = googleUkFemale || femalePool[1] || femalePool[0] || (activePool.length > 4 ? activePool[4] : activePool[0]);
       }
     } else if (!match) {
       const usVoices = voices.filter(v => v.lang && (v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en-US')));
