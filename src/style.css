@@ -937,7 +937,8 @@ body.font-serif .reader-content {
 
 @media (max-width: 480px) {
   .app-title {
-    display: none; /* Hide 'Gemini Reader' text on narrow phones, keep logo icon */
+    font-size: 0.8rem;
+    display: inline-block;
   }
   
   .doc-title-badge {
