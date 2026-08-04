@@ -34,9 +34,20 @@ export class AudioPlayerController {
     this.onMediaNext = null;
     this.onMediaPrev = null;
 
-    // Re-acquire wake lock and resume audio when screen unlocks
+    // Auto-resume mainAudio if mobile OS attempts to suspend audio on screen lock
+    this.mainAudio.addEventListener('pause', () => {
+      if (this.isPlaying) {
+        setTimeout(() => {
+          if (this.isPlaying && this.mainAudio && this.mainAudio.paused && this.mainAudio.src) {
+            this.mainAudio.play().catch(() => {});
+          }
+        }, 50);
+      }
+    });
+
+    // Re-acquire wake lock and force audio continuity when visibility changes (screen lock/unlock)
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.isPlaying) {
+      if (this.isPlaying) {
         this.requestWakeLock();
         if (this.mainAudio && this.mainAudio.paused && this.mainAudio.src) {
           this.mainAudio.play().catch(() => {});
