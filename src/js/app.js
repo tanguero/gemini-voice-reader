@@ -666,6 +666,15 @@ class GeminiVoiceReaderApp {
   startPlayback() {
     this.player.unlockMobileAudio();
     this.isPlaybackRequested = true;
+    if (this.currentDoc) {
+      this.ttsEngine.prefetchUpcoming(
+        this.currentDoc.sentences,
+        this.currentSentenceIndex,
+        5,
+        this.voiceSelect.value,
+        this.player.audioCtx
+      );
+    }
     this.playSentence(this.currentSentenceIndex);
   }
 
@@ -702,11 +711,11 @@ class GeminiVoiceReaderApp {
       this.currentDoc.totalSentences
     );
 
-    // Pre-fetch upcoming sentences for seamless playback
+    // Pre-fetch upcoming sentences for seamless lock-screen playback
     this.ttsEngine.prefetchUpcoming(
       this.currentDoc.sentences,
       index + 1,
-      3,
+      5,
       this.voiceSelect.value,
       this.player.audioCtx
     );
@@ -810,7 +819,7 @@ class GeminiVoiceReaderApp {
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=56').then(reg => {
+        navigator.serviceWorker.register('./sw.js?v=57').then(reg => {
           reg.update();
         }).catch(err => {
           console.warn('SW registration failed:', err);
