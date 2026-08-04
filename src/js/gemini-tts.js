@@ -145,11 +145,10 @@ export class GeminiTTSEngine {
     ];
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
-    const promptText = this.stylePrompt ? `${this.stylePrompt}\n\n${text}` : text;
 
     const payloadVariations = [
       {
-        contents: [{ parts: [{ text: promptText }] }],
+        contents: [{ parts: [{ text: text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
@@ -160,7 +159,7 @@ export class GeminiTTSEngine {
         }
       },
       {
-        contents: [{ parts: [{ text: promptText }] }],
+        contents: [{ parts: [{ text: text }] }],
         generationConfig: {
           responseModalities: ["TEXT", "AUDIO"],
           speechConfig: {
