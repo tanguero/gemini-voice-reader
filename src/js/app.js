@@ -810,7 +810,7 @@ class GeminiVoiceReaderApp {
   registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=48').then(reg => {
+        navigator.serviceWorker.register('./sw.js?v=49').then(reg => {
           reg.update();
         }).catch(err => {
           console.warn('SW registration failed:', err);

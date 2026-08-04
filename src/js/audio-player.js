@@ -1,5 +1,6 @@
 /**
  * Web Audio API Player & Visualizer Controller
+ * With reliable background / lock-screen playback support
  */
 
 export class AudioPlayerController {
@@ -25,6 +26,19 @@ export class AudioPlayerController {
     this.onMediaPause = null;
     this.onMediaNext = null;
     this.onMediaPrev = null;
+
+    // Re-acquire wake lock and resume audio when screen unlocks
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.isPlaying) {
+        this.requestWakeLock();
+        if (this.audioCtx && this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+        if ('speechSynthesis' in window) {
+          try { window.speechSynthesis.resume(); } catch (e) {}
+        }
+      }
+    });
   }
 
   updateMediaSession(title, sentenceIdx, totalSentences) {
@@ -45,12 +59,17 @@ export class AudioPlayerController {
         navigator.mediaSession.setActionHandler('previoustrack', () => { if (this.onMediaPrev) this.onMediaPrev(); });
         navigator.mediaSession.setActionHandler('nexttrack', () => { if (this.onMediaNext) this.onMediaNext(); });
       } catch (e) {}
+
+      // Set playback state so lock screen controls show correctly
+      try {
+        navigator.mediaSession.playbackState = 'playing';
+      } catch (e) {}
     }
   }
 
   createSilentWavBlob() {
     const sampleRate = 44100;
-    const numSamples = sampleRate * 3; // 3 seconds of real silence PCM
+    const numSamples = sampleRate * 10; // 10 seconds of silence (longer = more reliable keep-alive)
     const buffer = new ArrayBuffer(44 + numSamples * 2);
     const view = new DataView(buffer);
 
@@ -74,6 +93,11 @@ export class AudioPlayerController {
     writeString(36, 'data');
     view.setUint32(40, numSamples * 2, true);
 
+    // Write near-silent audio (tiny amplitude to prevent iOS from detecting pure silence and suspending)
+    for (let i = 0; i < numSamples; i++) {
+      view.setInt16(44 + i * 2, (i % 800 === 0) ? 1 : 0, true);
+    }
+
     const blob = new Blob([buffer], { type: 'audio/wav' });
     return URL.createObjectURL(blob);
   }
@@ -82,6 +106,13 @@ export class AudioPlayerController {
     if ('wakeLock' in navigator && !this.wakeLock) {
       try {
         this.wakeLock = await navigator.wakeLock.request('screen');
+        // Re-acquire wake lock if it's released (e.g. tab switch)
+        this.wakeLock.addEventListener('release', () => {
+          this.wakeLock = null;
+          if (this.isPlaying) {
+            this.requestWakeLock();
+          }
+        });
       } catch (e) {}
     }
   }
@@ -98,6 +129,7 @@ export class AudioPlayerController {
       const blobUrl = this.createSilentWavBlob();
       this.keepAliveAudio = new Audio(blobUrl);
       this.keepAliveAudio.loop = true;
+      this.keepAliveAudio.volume = 0.01; // Near-silent but not muted (muted audio gets suspended on iOS)
       this.keepAliveAudio.setAttribute('playsinline', '');
       this.keepAliveAudio.setAttribute('x-webkit-airplay', 'allow');
       this.keepAliveAudio.style.display = 'none';
@@ -112,6 +144,10 @@ export class AudioPlayerController {
       this.keepAliveAudio.pause();
     }
     this.releaseWakeLock();
+    // Update media session state
+    if ('mediaSession' in navigator) {
+      try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
+    }
   }
 
   initAudioContext() {
@@ -145,6 +181,8 @@ export class AudioPlayerController {
         window.speechSynthesis.resume();
       } catch (e) {}
     }
+    // Pre-start the keep-alive audio from user gesture context (required on iOS)
+    this.startBackgroundKeepAlive();
   }
 
   setPlaybackRate(rate) {
@@ -152,21 +190,23 @@ export class AudioPlayerController {
     if (this.currentSource && this.currentSource.playbackRate) {
       this.currentSource.playbackRate.value = this.playbackRate;
     }
+    if (this.currentHtmlAudio) {
+      this.currentHtmlAudio.playbackRate = this.playbackRate;
+    }
   }
 
   /**
    * Plays an AudioBuffer object or Web Speech Utterance
+   * Prefers HTML5 Audio for Gemini audio (survives screen lock better than Web Audio API)
    */
   async playItem(audioItem, onEndedCallback) {
     this.initAudioContext();
-    this.stopCurrent();
+    this.stopCurrentAudio(); // Stop audio only, keep the keep-alive running
 
     this.isPlaying = true;
 
-    // Check if Gemini Audio object ({ blobUrl, audioBuffer })
-    if (audioItem && audioItem.audioBuffer) {
-      this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
-    } else if (audioItem && audioItem.blobUrl) {
+    // Gemini Audio object: prefer blobUrl (HTML5 Audio) for background playback reliability
+    if (audioItem && audioItem.blobUrl) {
       const htmlAudio = new Audio(audioItem.blobUrl);
       htmlAudio.playbackRate = this.playbackRate;
 
@@ -186,13 +226,18 @@ export class AudioPlayerController {
       this.currentHtmlAudio = htmlAudio;
       htmlAudio.play().catch(e => {
         console.warn('HTML5 Audio play failed:', e);
+        // If HTML5 Audio fails, try Web Audio API as fallback
+        if (audioItem.audioBuffer) {
+          this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
+        }
       });
       this.startVisualizerMock();
+    } else if (audioItem && audioItem.audioBuffer) {
+      this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
     } else if (audioItem instanceof AudioBuffer) {
       this.playAudioBuffer(audioItem, onEndedCallback);
     } else if (audioItem instanceof SpeechSynthesisUtterance) {
       audioItem.rate = this.playbackRate;
-      const startTime = Date.now();
       const currentUtterance = audioItem;
       this.activeUtterance = currentUtterance;
 
@@ -234,10 +279,12 @@ export class AudioPlayerController {
     this.startVisualizer();
   }
 
-  stopCurrent() {
+  /**
+   * Stop only the current audio playback (keep the silent keep-alive running for background continuity)
+   */
+  stopCurrentAudio() {
     this.isPlaying = false;
     this.activeUtterance = null;
-    this.stopBackgroundKeepAlive();
 
     if (this.currentHtmlAudio) {
       try {
@@ -264,6 +311,14 @@ export class AudioPlayerController {
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
     }
+  }
+
+  /**
+   * Full stop: stop audio AND background keep-alive (used when user pauses)
+   */
+  stopCurrent() {
+    this.stopCurrentAudio();
+    this.stopBackgroundKeepAlive();
   }
 
   startVisualizer() {
