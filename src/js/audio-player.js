@@ -1,6 +1,6 @@
 /**
- * Web Audio API & HTML5 Audio Player Controller
- * Persistent Single-Audio-Element for seamless lock-screen / background playback
+ * Web Audio API Player Controller
+ * Uses continuous OscillatorNode to ensure gapless lock-screen / background playback on iOS/Android
  */
 
 export class AudioPlayerController {
@@ -12,13 +12,6 @@ export class AudioPlayerController {
     this.playbackRate = 1.0;
     this.selectedVoice = 'Kore';
     
-    // Single persistent HTML5 Audio element for continuous background playback across sentences
-    this.mainAudio = new Audio();
-    this.mainAudio.setAttribute('playsinline', '');
-    this.mainAudio.setAttribute('webkit-playsinline', '');
-    this.mainAudio.setAttribute('x-webkit-airplay', 'allow');
-    this.mainAudio.preload = 'auto';
-
     this.onSentenceStart = null;
     this.onSentenceEnd = null;
     this.onPlaybackFinished = null;
@@ -27,7 +20,9 @@ export class AudioPlayerController {
     this.sleepTimerEndTime = null;
 
     this.animFrameId = null;
-    this.keepAliveAudio = null;
+    
+    this.keepAliveOscillator = null;
+    this.keepAliveGain = null;
 
     this.onMediaPlay = null;
     this.onMediaPause = null;
@@ -73,40 +68,6 @@ export class AudioPlayerController {
     }
   }
 
-  createSilentWavBlob() {
-    const sampleRate = 44100;
-    const numSamples = sampleRate * 10; // 10 seconds of silence
-    const buffer = new ArrayBuffer(44 + numSamples * 2);
-    const view = new DataView(buffer);
-
-    function writeString(offset, string) {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
-      }
-    }
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + numSamples * 2, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(36, 'data');
-    view.setUint32(40, numSamples * 2, true);
-
-    for (let i = 0; i < numSamples; i++) {
-      view.setInt16(44 + i * 2, (i % 800 === 0) ? 1 : 0, true);
-    }
-
-    const blob = new Blob([buffer], { type: 'audio/wav' });
-    return URL.createObjectURL(blob);
-  }
-
   async requestWakeLock() {
     if ('wakeLock' in navigator && !this.wakeLock) {
       try {
@@ -129,24 +90,31 @@ export class AudioPlayerController {
   }
 
   startBackgroundKeepAlive() {
-    if (!this.keepAliveAudio) {
-      const blobUrl = this.createSilentWavBlob();
-      this.keepAliveAudio = new Audio(blobUrl);
-      this.keepAliveAudio.loop = true;
-      this.keepAliveAudio.volume = 0.01;
-      this.keepAliveAudio.setAttribute('playsinline', '');
-      this.keepAliveAudio.setAttribute('webkit-playsinline', '');
-      this.keepAliveAudio.setAttribute('x-webkit-airplay', 'allow');
-      this.keepAliveAudio.style.display = 'none';
-      document.body.appendChild(this.keepAliveAudio);
+    this.initAudioContext();
+    if (!this.keepAliveOscillator) {
+      this.keepAliveOscillator = this.audioCtx.createOscillator();
+      this.keepAliveGain = this.audioCtx.createGain();
+      
+      // Extremely low volume, enough to keep audio hardware engaged without being audible
+      this.keepAliveGain.gain.value = 0.0001; 
+      
+      this.keepAliveOscillator.connect(this.keepAliveGain);
+      this.keepAliveGain.connect(this.audioCtx.destination);
+      
+      this.keepAliveOscillator.start();
     }
-    this.keepAliveAudio.play().catch(e => {});
     this.requestWakeLock();
   }
 
   stopBackgroundKeepAlive() {
-    if (this.keepAliveAudio) {
-      this.keepAliveAudio.pause();
+    if (this.keepAliveOscillator) {
+      try {
+        this.keepAliveOscillator.stop();
+        this.keepAliveOscillator.disconnect();
+        this.keepAliveGain.disconnect();
+      } catch (e) {}
+      this.keepAliveOscillator = null;
+      this.keepAliveGain = null;
     }
     this.releaseWakeLock();
     if ('mediaSession' in navigator) {
@@ -186,17 +154,6 @@ export class AudioPlayerController {
       } catch (e) {}
     }
 
-    // Unlock persistent mainAudio element from direct user gesture
-    if (this.mainAudio) {
-      try {
-        const silentBlob = this.createSilentWavBlob();
-        this.mainAudio.src = silentBlob;
-        this.mainAudio.play().then(() => {
-          this.mainAudio.pause();
-        }).catch(() => {});
-      } catch (e) {}
-    }
-
     this.startBackgroundKeepAlive();
   }
 
@@ -205,48 +162,19 @@ export class AudioPlayerController {
     if (this.currentSource && this.currentSource.playbackRate) {
       this.currentSource.playbackRate.value = this.playbackRate;
     }
-    if (this.mainAudio) {
-      this.mainAudio.playbackRate = this.playbackRate;
-    }
   }
 
   /**
-   * Plays Gemini Audio or Web Speech Utterance
-   * Uses persistent mainAudio element for lock-screen continuous playback
+   * Plays Gemini Audio Buffer or Web Speech Utterance
    */
   async playItem(audioItem, onEndedCallback) {
     this.initAudioContext();
-    this.stopCurrentAudio(); // Stop audio stream only, keep background keep-alive active
+    this.stopCurrentAudio(); // Stop active sentence audio only, keep background oscillator active
 
     this.isPlaying = true;
 
-    if (audioItem && audioItem.blobUrl) {
-      this.mainAudio.src = audioItem.blobUrl;
-      this.mainAudio.playbackRate = this.playbackRate;
-
-      this.mainAudio.onended = () => {
-        if (this.isPlaying) {
-          this.isPlaying = false;
-          if (onEndedCallback) onEndedCallback();
-        }
-      };
-
-      this.mainAudio.onerror = (e) => {
-        console.warn('Main Audio playback error:', e);
-        if (this.isPlaying) {
-          this.isPlaying = false;
-          if (onEndedCallback) onEndedCallback();
-        }
-      };
-
-      this.mainAudio.play().catch(e => {
-        console.warn('HTML5 Audio play failed:', e);
-        if (audioItem.audioBuffer) {
-          this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
-        }
-      });
-      this.startVisualizerMock();
-    } else if (audioItem && audioItem.audioBuffer) {
+    // Prefer Web Audio API buffer for background robustness
+    if (audioItem && audioItem.audioBuffer) {
       this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
     } else if (audioItem instanceof AudioBuffer) {
       this.playAudioBuffer(audioItem, onEndedCallback);
@@ -299,14 +227,6 @@ export class AudioPlayerController {
   stopCurrentAudio() {
     this.isPlaying = false;
     this.activeUtterance = null;
-
-    if (this.mainAudio) {
-      try {
-        this.mainAudio.pause();
-        this.mainAudio.onended = null;
-        this.mainAudio.onerror = null;
-      } catch (e) {}
-    }
 
     if (this.currentSource) {
       try {

@@ -146,8 +146,13 @@ export class GeminiTTSEngine {
 
     const formattedVoiceName = voiceName ? (voiceName.charAt(0).toUpperCase() + voiceName.slice(1).toLowerCase()) : 'Kore';
 
+    const sysInstruction = { 
+      parts: [{ text: `You are a pure text-to-speech engine. Your only task is to read the exact text provided to you verbatim, without adding, removing, or changing a single word. Do not respond to the text, do not chat, do not answer questions, and do not change your voice persona. Style instruction: ${this.stylePrompt || 'Read naturally and clearly'}.` }] 
+    };
+
     const payloadVariations = [
       {
+        systemInstruction: sysInstruction,
         contents: [{ parts: [{ text: text }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
@@ -159,6 +164,7 @@ export class GeminiTTSEngine {
         }
       },
       {
+        systemInstruction: sysInstruction,
         contents: [{ parts: [{ text: text }] }],
         generationConfig: {
           responseModalities: ["TEXT", "AUDIO"],
