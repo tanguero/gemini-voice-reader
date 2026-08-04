@@ -224,11 +224,9 @@ export class GeminiTTSEngine {
             bytes[i] = binaryString.charCodeAt(i);
           }
 
-          const mimeType = (audioPart.inlineData.mimeType || '').toLowerCase();
-          const isRiff = bytes.length > 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
-          const isMp3 = (bytes.length > 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) ||
-                        (bytes.length > 2 && bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) ||
-                        mimeType.includes('mp3') || mimeType.includes('mpeg');
+          const isRiff = bytes.length > 4 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+          const isId3 = bytes.length > 3 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
+          const isMp3Frame = bytes.length > 2 && bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0;
           const isOgg = bytes.length > 4 && bytes[0] === 0x4F && bytes[1] === 0x47 && bytes[2] === 0x47;
 
           let blobType = 'audio/wav';
@@ -237,14 +235,14 @@ export class GeminiTTSEngine {
           if (isRiff) {
             blobType = 'audio/wav';
             finalBytes = bytes;
-          } else if (isMp3) {
+          } else if (isId3 || isMp3Frame) {
             blobType = 'audio/mp3';
             finalBytes = bytes;
           } else if (isOgg) {
             blobType = 'audio/ogg';
             finalBytes = bytes;
           } else {
-            // Raw PCM 16-bit 24kHz mono audio from Gemini
+            // Raw PCM 16-bit 24kHz mono audio from Gemini API
             blobType = 'audio/wav';
             finalBytes = pcmToWav(bytes, 24000);
           }
