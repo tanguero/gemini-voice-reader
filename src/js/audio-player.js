@@ -1,6 +1,6 @@
 /**
- * Web Audio API Player & Visualizer Controller
- * With reliable background / lock-screen playback support
+ * Web Audio API & HTML5 Audio Player Controller
+ * Persistent Single-Audio-Element for seamless lock-screen / background playback
  */
 
 export class AudioPlayerController {
@@ -12,6 +12,13 @@ export class AudioPlayerController {
     this.playbackRate = 1.0;
     this.selectedVoice = 'Kore';
     
+    // Single persistent HTML5 Audio element for continuous background playback across sentences
+    this.mainAudio = new Audio();
+    this.mainAudio.setAttribute('playsinline', '');
+    this.mainAudio.setAttribute('webkit-playsinline', '');
+    this.mainAudio.setAttribute('x-webkit-airplay', 'allow');
+    this.mainAudio.preload = 'auto';
+
     this.onSentenceStart = null;
     this.onSentenceEnd = null;
     this.onPlaybackFinished = null;
@@ -60,7 +67,6 @@ export class AudioPlayerController {
         navigator.mediaSession.setActionHandler('nexttrack', () => { if (this.onMediaNext) this.onMediaNext(); });
       } catch (e) {}
 
-      // Set playback state so lock screen controls show correctly
       try {
         navigator.mediaSession.playbackState = 'playing';
       } catch (e) {}
@@ -69,7 +75,7 @@ export class AudioPlayerController {
 
   createSilentWavBlob() {
     const sampleRate = 44100;
-    const numSamples = sampleRate * 10; // 10 seconds of silence (longer = more reliable keep-alive)
+    const numSamples = sampleRate * 10; // 10 seconds of silence
     const buffer = new ArrayBuffer(44 + numSamples * 2);
     const view = new DataView(buffer);
 
@@ -93,7 +99,6 @@ export class AudioPlayerController {
     writeString(36, 'data');
     view.setUint32(40, numSamples * 2, true);
 
-    // Write near-silent audio (tiny amplitude to prevent iOS from detecting pure silence and suspending)
     for (let i = 0; i < numSamples; i++) {
       view.setInt16(44 + i * 2, (i % 800 === 0) ? 1 : 0, true);
     }
@@ -106,7 +111,6 @@ export class AudioPlayerController {
     if ('wakeLock' in navigator && !this.wakeLock) {
       try {
         this.wakeLock = await navigator.wakeLock.request('screen');
-        // Re-acquire wake lock if it's released (e.g. tab switch)
         this.wakeLock.addEventListener('release', () => {
           this.wakeLock = null;
           if (this.isPlaying) {
@@ -129,8 +133,9 @@ export class AudioPlayerController {
       const blobUrl = this.createSilentWavBlob();
       this.keepAliveAudio = new Audio(blobUrl);
       this.keepAliveAudio.loop = true;
-      this.keepAliveAudio.volume = 0.01; // Near-silent but not muted (muted audio gets suspended on iOS)
+      this.keepAliveAudio.volume = 0.01;
       this.keepAliveAudio.setAttribute('playsinline', '');
+      this.keepAliveAudio.setAttribute('webkit-playsinline', '');
       this.keepAliveAudio.setAttribute('x-webkit-airplay', 'allow');
       this.keepAliveAudio.style.display = 'none';
       document.body.appendChild(this.keepAliveAudio);
@@ -144,7 +149,6 @@ export class AudioPlayerController {
       this.keepAliveAudio.pause();
     }
     this.releaseWakeLock();
-    // Update media session state
     if ('mediaSession' in navigator) {
       try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
     }
@@ -181,7 +185,18 @@ export class AudioPlayerController {
         window.speechSynthesis.resume();
       } catch (e) {}
     }
-    // Pre-start the keep-alive audio from user gesture context (required on iOS)
+
+    // Unlock persistent mainAudio element from direct user gesture
+    if (this.mainAudio) {
+      try {
+        const silentBlob = this.createSilentWavBlob();
+        this.mainAudio.src = silentBlob;
+        this.mainAudio.play().then(() => {
+          this.mainAudio.pause();
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
     this.startBackgroundKeepAlive();
   }
 
@@ -190,43 +205,42 @@ export class AudioPlayerController {
     if (this.currentSource && this.currentSource.playbackRate) {
       this.currentSource.playbackRate.value = this.playbackRate;
     }
-    if (this.currentHtmlAudio) {
-      this.currentHtmlAudio.playbackRate = this.playbackRate;
+    if (this.mainAudio) {
+      this.mainAudio.playbackRate = this.playbackRate;
     }
   }
 
   /**
-   * Plays an AudioBuffer object or Web Speech Utterance
-   * Prefers HTML5 Audio for Gemini audio (survives screen lock better than Web Audio API)
+   * Plays Gemini Audio or Web Speech Utterance
+   * Uses persistent mainAudio element for lock-screen continuous playback
    */
   async playItem(audioItem, onEndedCallback) {
     this.initAudioContext();
-    this.stopCurrentAudio(); // Stop audio only, keep the keep-alive running
+    this.stopCurrentAudio(); // Stop audio stream only, keep background keep-alive active
 
     this.isPlaying = true;
 
-    // Gemini Audio object: prefer blobUrl (HTML5 Audio) for background playback reliability
     if (audioItem && audioItem.blobUrl) {
-      const htmlAudio = new Audio(audioItem.blobUrl);
-      htmlAudio.playbackRate = this.playbackRate;
+      this.mainAudio.src = audioItem.blobUrl;
+      this.mainAudio.playbackRate = this.playbackRate;
 
-      htmlAudio.onended = () => {
-        if (this.currentHtmlAudio === htmlAudio) {
-          this.isPlaying = false;
-          if (onEndedCallback) onEndedCallback();
-        }
-      };
-      htmlAudio.onerror = () => {
-        if (this.currentHtmlAudio === htmlAudio) {
+      this.mainAudio.onended = () => {
+        if (this.isPlaying) {
           this.isPlaying = false;
           if (onEndedCallback) onEndedCallback();
         }
       };
 
-      this.currentHtmlAudio = htmlAudio;
-      htmlAudio.play().catch(e => {
+      this.mainAudio.onerror = (e) => {
+        console.warn('Main Audio playback error:', e);
+        if (this.isPlaying) {
+          this.isPlaying = false;
+          if (onEndedCallback) onEndedCallback();
+        }
+      };
+
+      this.mainAudio.play().catch(e => {
         console.warn('HTML5 Audio play failed:', e);
-        // If HTML5 Audio fails, try Web Audio API as fallback
         if (audioItem.audioBuffer) {
           this.playAudioBuffer(audioItem.audioBuffer, onEndedCallback);
         }
@@ -280,18 +294,18 @@ export class AudioPlayerController {
   }
 
   /**
-   * Stop only the current audio playback (keep the silent keep-alive running for background continuity)
+   * Stop current sentence audio without stopping background keep-alive
    */
   stopCurrentAudio() {
     this.isPlaying = false;
     this.activeUtterance = null;
 
-    if (this.currentHtmlAudio) {
+    if (this.mainAudio) {
       try {
-        this.currentHtmlAudio.pause();
-        this.currentHtmlAudio.currentTime = 0;
+        this.mainAudio.pause();
+        this.mainAudio.onended = null;
+        this.mainAudio.onerror = null;
       } catch (e) {}
-      this.currentHtmlAudio = null;
     }
 
     if (this.currentSource) {
@@ -314,7 +328,7 @@ export class AudioPlayerController {
   }
 
   /**
-   * Full stop: stop audio AND background keep-alive (used when user pauses)
+   * Full stop: stops audio AND background keep-alive (used when user hits pause)
    */
   stopCurrent() {
     this.stopCurrentAudio();
